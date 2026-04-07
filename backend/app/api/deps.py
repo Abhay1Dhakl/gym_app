@@ -15,6 +15,12 @@ from app.models.entities import ClientProfile, SessionToken, TrainingProgram, Us
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def _normalize_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _load_user_for_token(db: Session, token: str) -> tuple[User, SessionToken]:
     hashed = hash_token(token)
     statement = (
@@ -25,7 +31,7 @@ def _load_user_for_token(db: Session, token: str) -> tuple[User, SessionToken]:
     session_token = db.scalar(statement)
     if not session_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
-    if session_token.expires_at < datetime.now(UTC):
+    if _normalize_utc(session_token.expires_at) < datetime.now(UTC):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token expired")
     return session_token.user, session_token
 

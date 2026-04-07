@@ -4,10 +4,15 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+from app.db.session import engine
 from app.main import app
 
 
 class AppSmokeTests(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        engine.dispose()
+
     def test_healthcheck(self) -> None:
         with TestClient(app) as client:
             response = client.get("/api/health")

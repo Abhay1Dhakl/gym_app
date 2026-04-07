@@ -1,5 +1,3 @@
-library coach_flow_core;
-
 export 'src/config/api_config.dart';
 export 'src/models/platform_models.dart';
 export 'src/repositories/admin_repository.dart';

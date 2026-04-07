@@ -1,0 +1,8 @@
+.DS_Store
+.venv/
+backend/data/
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
