@@ -4,6 +4,7 @@ This repo now contains a static front-end starter for a personal coaching system
 
 - landing page: `index.html`
 - dashboard demo: `dashboard.html`
+- client app demo: `client-app.html`
 - styling: `styles.css`
 - content and module data: `script.js`
 
@@ -12,6 +13,7 @@ This repo now contains a static front-end starter for a personal coaching system
 - personal-brand landing page
 - FitFocus-style product categories adapted for a solo coach
 - interactive dashboard navigation
+- client-facing application demo
 - modules for overview, clients, builder, nutrition, comms, and ops
 - responsive layout with no build step required
 
@@ -27,6 +29,7 @@ Then open:
 
 - `http://localhost:4173/index.html`
 - `http://localhost:4173/dashboard.html`
+- `http://localhost:4173/client-app.html`
 
 ## Customize The Brand
 

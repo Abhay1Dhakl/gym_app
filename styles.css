@@ -705,6 +705,12 @@ button {
   margin-top: auto;
 }
 
+.sidebar-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .dashboard-main {
   padding: 24px;
   border-radius: 30px;
@@ -1080,6 +1086,217 @@ button {
   font-size: 0.92rem;
 }
 
+.page-client {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(214, 170, 80, 0.18), transparent 20%),
+    radial-gradient(circle at 90% 12%, rgba(201, 95, 50, 0.14), transparent 20%),
+    linear-gradient(180deg, #f3ebdf 0%, #ece0cf 45%, #eee5d8 100%);
+}
+
+.client-shell {
+  width: var(--shell-width);
+  margin: 0 auto;
+  padding: 24px 0 42px;
+}
+
+.client-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.client-main {
+  padding-top: 36px;
+}
+
+.client-intro {
+  max-width: 62ch;
+}
+
+.client-intro h1 {
+  margin: 0;
+  font-family: "Instrument Serif", serif;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  font-size: clamp(3rem, 6vw, 5.3rem);
+}
+
+.client-showcase {
+  display: grid;
+  grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  margin-top: 28px;
+}
+
+.phone-panel {
+  padding: 18px;
+  border-radius: 34px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 18px;
+}
+
+.phone-frame {
+  padding: 16px;
+  border-radius: 32px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(245, 238, 228, 0.9));
+}
+
+.phone-notch {
+  display: block;
+  width: 124px;
+  height: 28px;
+  margin: 0 auto 16px;
+  border-radius: 999px;
+  background: rgba(22, 33, 23, 0.92);
+}
+
+.phone-top h2 {
+  margin: 0;
+  font-family: "Instrument Serif", serif;
+  font-weight: 400;
+  font-size: clamp(2rem, 4vw, 2.7rem);
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+.phone-lede {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.client-quickstats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.quick-pill {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid var(--line);
+}
+
+.quick-pill strong,
+.quick-pill span {
+  display: block;
+}
+
+.quick-pill strong {
+  font-size: 1.05rem;
+}
+
+.quick-pill span {
+  margin-top: 5px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.phone-subhead {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.phone-subhead strong {
+  font-size: 1.05rem;
+}
+
+.phone-subhead span {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.client-screen {
+  display: grid;
+  gap: 12px;
+  min-height: 360px;
+}
+
+.phone-card {
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.phone-card h3 {
+  font-size: 1.12rem;
+}
+
+.phone-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 10px;
+}
+
+.phone-checklist li {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid var(--line);
+}
+
+.check-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 6px;
+}
+
+.phone-checklist strong,
+.phone-checklist span {
+  display: block;
+}
+
+.phone-checklist span {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.client-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.client-tabbar button {
+  flex: 1 1 calc(33.333% - 8px);
+  min-height: 44px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.56);
+  border-radius: 16px;
+  color: var(--ink-soft);
+  padding: 0 12px;
+}
+
+.client-tabbar button.active {
+  background: var(--ink);
+  color: #fff9f2;
+  border-color: transparent;
+}
+
+.client-sidepanels {
+  display: grid;
+  gap: 18px;
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(24px);
@@ -1097,6 +1314,7 @@ button {
   .hero,
   .preview-layout,
   .dashboard-content,
+  .client-showcase,
   .overview-grid,
   .builder-grid,
   .clients-grid,
@@ -1124,13 +1342,18 @@ button {
   .app-sidebar {
     margin-bottom: 0;
   }
+
+  .phone-panel {
+    position: static;
+  }
 }
 
 @media (max-width: 820px) {
   .site-header,
   .site-footer,
   .module-header,
-  .dashboard-topbar {
+  .dashboard-topbar,
+  .client-header {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -1152,6 +1375,7 @@ button {
   .metric-row,
   .kpi-grid,
   .macro-grid,
+  .client-quickstats,
   .panel-subgrid.two-up,
   .panel-subgrid.three-up,
   .browser-kpis,
@@ -1173,5 +1397,9 @@ button {
 
   .dashboard-shell {
     margin: 10px auto;
+  }
+
+  .client-tabbar button {
+    flex-basis: calc(50% - 8px);
   }
 }

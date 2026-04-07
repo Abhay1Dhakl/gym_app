@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Client-facing application demo for a personal coaching platform."
+    />
+    <title>Abhay Method Client App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="page-client">
+    <div class="client-shell">
+      <header class="client-header">
+        <a class="brand-mark" href="./index.html" aria-label="Go to homepage">
+          <span class="brand-monogram" data-brand-short></span>
+          <span>
+            <strong data-brand-name></strong>
+            <small data-brand-descriptor></small>
+          </span>
+        </a>
+
+        <nav class="site-nav" aria-label="Main navigation">
+          <a href="./index.html">Website</a>
+          <a href="./dashboard.html">Coach Dashboard</a>
+          <a href="./client-app.html">Client App</a>
+        </nav>
+
+        <a class="button button-dark" href="./dashboard.html">Coach View</a>
+      </header>
+
+      <main class="client-main">
+        <section class="client-intro reveal">
+          <p class="eyebrow">Client Side</p>
+          <h1>What your clients will actually open every day.</h1>
+          <p class="lede">
+            They do not need the coach back office. They need a clean application
+            for workouts, nutrition, check-ins, progress tracking, messaging, and
+            account access.
+          </p>
+        </section>
+
+        <section class="client-showcase reveal">
+          <div class="phone-panel surface-panel">
+            <div class="phone-frame">
+              <span class="phone-notch" aria-hidden="true"></span>
+
+              <div class="phone-top">
+                <p class="eyebrow">Member App</p>
+                <h2>Hello, <span data-client-name></span>.</h2>
+                <p class="phone-lede">
+                  <span data-brand-name></span> keeps your plan, coach messages,
+                  check-ins, and progress in one place.
+                </p>
+              </div>
+
+              <div class="client-quickstats" id="client-quickstats"></div>
+
+              <div class="phone-subhead">
+                <strong id="client-tab-title"></strong>
+                <span id="client-tab-description"></span>
+              </div>
+
+              <div class="client-screen" id="client-screen"></div>
+
+              <nav class="client-tabbar" id="client-tabbar" aria-label="Client app tabs"></nav>
+            </div>
+          </div>
+
+          <div class="client-sidepanels">
+            <article class="surface-card">
+              <p class="card-label">Core Client Flows</p>
+              <h3>What they can do on their own</h3>
+              <ul class="micro-list" id="client-core-list"></ul>
+            </article>
+
+            <article class="surface-card">
+              <p class="card-label">Weekly Rhythm</p>
+              <h3>How the client journey feels</h3>
+              <div class="stack-list">
+                <div class="stack-item">
+                  <strong>Train from the phone</strong>
+                  <span>Open today's workout, log sets and reps, and watch exercise notes without asking for PDFs or spreadsheets.</span>
+                </div>
+                <div class="stack-item">
+                  <strong>Stay on track between sessions</strong>
+                  <span>Hit macro and habit targets, upload check-ins, and send form videos in the same place.</span>
+                </div>
+                <div class="stack-item">
+                  <strong>See progress clearly</strong>
+                  <span>Bodyweight trends, coach notes, upcoming payments, and plan milestones are easy to find.</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="surface-card">
+              <p class="card-label">Build Direction</p>
+              <h3>This becomes the real client account area</h3>
+              <p>
+                Once auth and data models are added, each client will only see
+                their own workouts, nutrition targets, invoices, messages, and
+                progress history.
+              </p>
+              <div class="hero-actions">
+                <a class="button button-dark" href="./dashboard.html">Coach Dashboard</a>
+                <a class="button button-light" href="./index.html">Landing Page</a>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

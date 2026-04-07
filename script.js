@@ -5,6 +5,12 @@ const brand = {
   descriptor: "private strength and physique coaching",
 };
 
+const clientProfile = {
+  name: "Maya",
+  goal: "fat loss while keeping squat strength stable",
+  plan: "Phase 2 / lower-upper split",
+};
+
 const landingMetrics = [
   { value: "31", label: "active clients" },
   { value: "89%", label: "weekly adherence" },
@@ -91,6 +97,20 @@ const actionItems = [
   "Assign a 4-day hypertrophy block",
   "Send a nutrition adherence reminder",
   "Export this month's revenue summary",
+];
+
+const clientQuickStats = [
+  { value: "Day 3", label: "workout today" },
+  { value: "8.2k", label: "steps today" },
+  { value: "86%", label: "nutrition week" },
+];
+
+const clientCoreList = [
+  "Open today's workout and log sets, reps, and notes.",
+  "Check macros, meals, steps, and daily habit targets.",
+  "Submit weekly check-ins with bodyweight, photos, and recovery scores.",
+  "Message the coach directly and send exercise videos.",
+  "See plan status, invoices, and coaching account details.",
 ];
 
 const dashboardModules = [
@@ -488,6 +508,279 @@ const dashboardModules = [
   },
 ];
 
+const clientTabs = [
+  {
+    id: "home",
+    label: "Home",
+    description: "A simple daily summary with today's session, habits, and coach guidance.",
+    render: () => `
+      <article class="surface-card phone-card">
+        <p class="card-label">Today</p>
+        <h3>Lower volume session</h3>
+        <p>
+          47 minutes. Four exercises. Finish with sled drags and upload your final set note.
+        </p>
+        <div class="panel-subgrid two-up">
+          <div class="metric-chip">
+            <strong>7.8 / 10</strong>
+            <span>readiness score</span>
+          </div>
+          <div class="metric-chip">
+            <strong>5:30 PM</strong>
+            <span>planned training time</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Habits</p>
+        <ul class="phone-checklist">
+          <li>
+            <span class="check-dot"></span>
+            <div>
+              <strong>8,000 steps</strong>
+              <span>Current progress: 8,230 steps.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-dot"></span>
+            <div>
+              <strong>175g protein</strong>
+              <span>146g logged so far, one meal left.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-dot"></span>
+            <div>
+              <strong>Sleep target</strong>
+              <span>7h 35m last night. Better than last week's average.</span>
+            </div>
+          </li>
+        </ul>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Coach Note</p>
+        <h3>Keep today's effort controlled</h3>
+        <p>
+          Stay one rep shy of failure on leg press and lunges. If energy dips, keep the load steady and prioritize clean reps.
+        </p>
+      </article>
+    `,
+  },
+  {
+    id: "training",
+    label: "Train",
+    description: "The workout view clients use to follow the plan and log execution.",
+    render: () => `
+      <article class="surface-card phone-card">
+        <p class="card-label">Today's Workout</p>
+        <h3>Day 3: Lower volume</h3>
+        <div class="stack-list">
+          <div class="exercise-row">
+            <strong>Leg Press</strong>
+            <span>4 x 10, 2 min rest, stop 1 rep before failure.</span>
+          </div>
+          <div class="exercise-row">
+            <strong>Hamstring Curl</strong>
+            <span>3 x 12 with a 2-second squeeze on each rep.</span>
+          </div>
+          <div class="exercise-row">
+            <strong>Reverse Lunge</strong>
+            <span>3 x 8 per side, controlled eccentric, straps optional.</span>
+          </div>
+          <div class="exercise-row">
+            <strong>Sled Drag</strong>
+            <span>6 rounds x 20m as the finisher.</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Session Tools</p>
+        <div class="panel-subgrid two-up">
+          <div class="metric-chip">
+            <strong>Video form</strong>
+            <span>Upload your top set for coach review.</span>
+          </div>
+          <div class="metric-chip">
+            <strong>Notes</strong>
+            <span>Mark pain, fatigue, or substitutions during travel.</span>
+          </div>
+        </div>
+      </article>
+    `,
+  },
+  {
+    id: "nutrition",
+    label: "Nutrition",
+    description: "Macro targets, meal structure, and adherence feedback from the client perspective.",
+    render: () => `
+      <article class="surface-card phone-card">
+        <p class="card-label">Macro Targets</p>
+        <div class="macro-grid">
+          <div class="macro-card">
+            <strong>175g</strong>
+            <span>protein</span>
+          </div>
+          <div class="macro-card">
+            <strong>210g</strong>
+            <span>carbs</span>
+          </div>
+          <div class="macro-card">
+            <strong>58g</strong>
+            <span>fat</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">This Week</p>
+        <div class="bar-chart">
+          ${[
+            ["Protein", "94%", "94%"],
+            ["Steps", "88%", "88%"],
+            ["Hydration", "79%", "79%"],
+            ["Weekend control", "72%", "72%"],
+          ]
+            .map(
+              ([label, value, width]) => `
+                <div class="bar-row">
+                  <span>${label}</span>
+                  <div class="bar" style="--fill: ${width};"></div>
+                  <span>${value}</span>
+                </div>
+              `,
+            )
+            .join("")}
+        </div>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Meal Structure</p>
+        <p>
+          Meal 1 yogurt bowl, meal 2 chicken rice bowl, meal 3 pre-training wrap, meal 4 beef and potatoes.
+        </p>
+      </article>
+    `,
+  },
+  {
+    id: "checkin",
+    label: "Check-In",
+    description: "The weekly review flow where clients report progress and the coach makes adjustments.",
+    render: () => `
+      <article class="surface-card phone-card">
+        <p class="card-label">Friday Check-In</p>
+        <h3>Ready to submit</h3>
+        <ul class="phone-checklist">
+          <li>
+            <span class="check-dot"></span>
+            <div>
+              <strong>Bodyweight</strong>
+              <span>67.2kg entered this morning.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-dot"></span>
+            <div>
+              <strong>Progress photos</strong>
+              <span>Front, side, and back images uploaded.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-dot"></span>
+            <div>
+              <strong>Recovery scores</strong>
+              <span>Sleep 4/5, stress 3/5, soreness 2/5.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-dot"></span>
+            <div>
+              <strong>Weekly note</strong>
+              <span>Travel made meal timing harder, but training stayed consistent.</span>
+            </div>
+          </li>
+        </ul>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Last Coach Response</p>
+        <h3>Plan adjustment queued</h3>
+        <p>
+          Calories stay the same. Conditioning moves to bike intervals next week and leg volume drops slightly.
+        </p>
+      </article>
+    `,
+  },
+  {
+    id: "messages",
+    label: "Messages",
+    description: "Direct communication, form reviews, and accountability without leaving the app.",
+    render: () => `
+      <article class="surface-card phone-card">
+        <p class="card-label">Coach Chat</p>
+        <div class="message-thread">
+          <div class="chat-bubble">
+            Uploaded today's squat video. Last set looked slower than expected.
+          </div>
+          <div class="chat-bubble outbound">
+            Depth looks solid. Keep the load, but remove one back-off set and stop at RPE 8 today.
+          </div>
+          <div class="chat-bubble">
+            Perfect. I'll update the session note after training.
+          </div>
+        </div>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Response Standard</p>
+        <p>
+          Clients get one thread tied to their coaching record, not scattered DMs across multiple apps.
+        </p>
+      </article>
+    `,
+  },
+  {
+    id: "account",
+    label: "Account",
+    description: "Membership status, plan info, and billing details visible to the client.",
+    render: () => `
+      <article class="surface-card phone-card">
+        <p class="card-label">Membership</p>
+        <h3>Premium online coaching</h3>
+        <div class="panel-subgrid two-up">
+          <div class="metric-chip">
+            <strong>Active</strong>
+            <span>subscription status</span>
+          </div>
+          <div class="metric-chip">
+            <strong>Apr 21</strong>
+            <span>next billing date</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Included</p>
+        <ul class="micro-list">
+          <li>Personalized training program</li>
+          <li>Nutrition targets and habit guidance</li>
+          <li>Weekly check-in review</li>
+          <li>Direct coach messaging</li>
+        </ul>
+      </article>
+
+      <article class="surface-card phone-card">
+        <p class="card-label">Plan Summary</p>
+        <p>
+          Goal: ${clientProfile.goal}. Current structure: ${clientProfile.plan}. Payment details and receipts live here instead of email threads.
+        </p>
+      </article>
+    `,
+  },
+];
+
 function injectBrand() {
   if (document.title.includes("Abhay Method")) {
     document.title = document.title.replace("Abhay Method", brand.brandName);
@@ -498,6 +791,7 @@ function injectBrand() {
     ["[data-brand-short]", brand.shortName],
     ["[data-coach-name]", brand.coachName],
     ["[data-brand-descriptor]", brand.descriptor],
+    ["[data-client-name]", clientProfile.name],
   ];
 
   mappings.forEach(([selector, value]) => {
@@ -570,6 +864,22 @@ function renderDashboardKPIs() {
     .join("");
 }
 
+function renderClientQuickStats() {
+  const container = document.querySelector("#client-quickstats");
+  if (!container) return;
+
+  container.innerHTML = clientQuickStats
+    .map(
+      (item) => `
+        <article class="quick-pill">
+          <strong>${item.value}</strong>
+          <span>${item.label}</span>
+        </article>
+      `,
+    )
+    .join("");
+}
+
 function renderList(containerSelector, items) {
   const container = document.querySelector(containerSelector);
   if (!container) return;
@@ -622,6 +932,50 @@ function renderDashboard() {
   drawModule(activeId);
 }
 
+function renderClientApp() {
+  const tabbar = document.querySelector("#client-tabbar");
+  const title = document.querySelector("#client-tab-title");
+  const description = document.querySelector("#client-tab-description");
+  const screen = document.querySelector("#client-screen");
+
+  if (!tabbar || !title || !description || !screen) return;
+
+  let activeId = clientTabs[0].id;
+
+  function drawTab(id) {
+    const activeTab = clientTabs.find((tab) => tab.id === id) || clientTabs[0];
+
+    activeId = activeTab.id;
+    title.textContent = activeTab.label;
+    description.textContent = activeTab.description;
+    screen.innerHTML = activeTab.render();
+
+    tabbar.querySelectorAll("button").forEach((button) => {
+      button.classList.toggle("active", button.dataset.tab === activeId);
+    });
+  }
+
+  tabbar.innerHTML = clientTabs
+    .map(
+      (tab) => `
+        <button type="button" data-tab="${tab.id}">
+          <span>${tab.label}</span>
+        </button>
+      `,
+    )
+    .join("");
+
+  tabbar.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const button = target ? target.closest("button[data-tab]") : null;
+    if (!button) return;
+
+    drawTab(button.dataset.tab);
+  });
+
+  drawTab(activeId);
+}
+
 function initReveal() {
   const items = document.querySelectorAll(".reveal");
   if (!items.length) return;
@@ -647,9 +1001,12 @@ function init() {
   renderCards("#feature-grid", features, "feature-card");
   renderModuleList();
   renderDashboardKPIs();
+  renderClientQuickStats();
   renderList("#priority-list", priorityItems);
   renderList("#action-list", actionItems);
+  renderList("#client-core-list", clientCoreList);
   renderDashboard();
+  renderClientApp();
   initReveal();
 }
 
