@@ -93,80 +93,80 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Row(
-          children: [
-            NavigationRail(
-              selectedIndex: _navIndex,
-              onDestinationSelected: (index) {
-                setState(() {
-                  _navIndex = index;
-                });
-              },
-              leading: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      child: Text(
-                        (widget.session.fullName ?? 'SA')
-                            .trim()
-                            .split(RegExp(r'\s+'))
-                            .take(2)
-                            .map(
-                              (part) =>
-                                  part.isEmpty ? '' : part[0].toUpperCase(),
-                            )
-                            .join(),
+      body: AuroraBackground(
+        palette: AppTheme.adminPalette,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                GlassPanel(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 18,
+                  ),
+                  child: SizedBox(
+                    width: 140,
+                    child: NavigationRail(
+                      selectedIndex: _navIndex,
+                      onDestinationSelected: (index) {
+                        setState(() {
+                          _navIndex = index;
+                        });
+                      },
+                      groupAlignment: -0.72,
+                      leading: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const BrandChip(
+                              label: 'Super Admin',
+                              icon: Icons.workspace_premium,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.session.fullName ?? 'Platform Operator',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.space_dashboard_outlined),
+                          selectedIcon: Icon(Icons.space_dashboard),
+                          label: Text('Overview'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.business_outlined),
+                          selectedIcon: Icon(Icons.business),
+                          label: Text('Gyms'),
+                        ),
+                      ],
+                      trailing: Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: IconButton(
+                            onPressed: widget.onLogout,
+                            icon: const Icon(Icons.logout),
+                            tooltip: 'Log out',
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const SizedBox(
-                      width: 92,
-                      child: Text(
-                        'Super Admin',
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.space_dashboard_outlined),
-                  selectedIcon: Icon(Icons.space_dashboard),
-                  label: Text('Overview'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.business_outlined),
-                  selectedIcon: Icon(Icons.business),
-                  label: Text('Gyms'),
-                ),
-              ],
-              trailing: Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: IconButton(
-                    onPressed: widget.onLogout,
-                    icon: const Icon(Icons.logout),
-                    tooltip: 'Log out',
                   ),
                 ),
-              ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: _navIndex == 0
+                      ? _buildOverview()
+                      : _buildGymsWorkspace(),
+                ),
+              ],
             ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: _navIndex == 0
-                    ? _buildOverview()
-                    : _buildGymsWorkspace(),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -186,15 +186,13 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
         final data = snapshot.data!;
         return ListView(
           children: [
-            Text(
-              'Platform Overview',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const ScreenIntro(
+              eyebrow: 'Platform',
+              title: 'Launch beautifully branded gym workspaces.',
+              subtitle:
+                  'Spin up new gym-owner accounts, attach each gym’s visual identity, and keep every gym’s members, billing, and coaching data inside its own tenant.',
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Create isolated gym-owner workspaces, assign their gym branding, and let each gym manage its own members.',
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             Wrap(
               spacing: 16,
               runSpacing: 16,
@@ -215,6 +213,26 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
                 ),
               ],
             ),
+            const SizedBox(height: 20),
+            GlassPanel(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'The platform layer now uses the same premium visual language as the gym apps. It feels closer to a real SaaS control plane than a plain dashboard.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: const Color(0xFF334155),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 18),
+                  const BrandChip(
+                    label: 'GymOS Cloud',
+                    icon: Icons.auto_awesome_rounded,
+                  ),
+                ],
+              ),
+            ),
           ],
         );
       },
@@ -225,13 +243,11 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Create Gym Owner',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Each gym owner gets a separate admin workspace. Their clients, messages, programs, and billing stay inside that gym.',
+        const ScreenIntro(
+          eyebrow: 'Gym Provisioning',
+          title: 'Create a polished gym-owner workspace in minutes.',
+          subtitle:
+              'Each gym owner gets a separate branded console. Their clients, messages, programs, and billing stay inside that gym.',
         ),
         const SizedBox(height: 16),
         _PanelCard(
@@ -257,7 +273,7 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
                 ),
               ),
               SizedBox(
-                width: 180,
+                width: 190,
                 child: TextField(
                   controller: _ownerPasswordController,
                   obscureText: true,
@@ -300,9 +316,10 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
               }
 
               final admins = snapshot.data!;
-              return Card(
+              return GlassPanel(
+                padding: const EdgeInsets.all(18),
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.zero,
                   itemBuilder: (context, index) {
                     final admin = admins[index];
                     return ListTile(
@@ -317,11 +334,21 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
                         'Active clients: ${admin.activeClients} • Invited: ${admin.invitedClients}',
                       ),
                       isThreeLine: true,
-                      trailing: Text('Org ${admin.organizationId}'),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text('Org ${admin.organizationId}'),
+                      ),
                     );
                   },
                   separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
+                      const Divider(height: 24),
                   itemCount: admins.length,
                 ),
               );
@@ -343,17 +370,15 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 220,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 8),
-              Text(value, style: Theme.of(context).textTheme.headlineMedium),
-            ],
-          ),
+      child: GlassPanel(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 10),
+            Text(value, style: Theme.of(context).textTheme.headlineMedium),
+          ],
         ),
       ),
     );
@@ -378,6 +403,7 @@ class _BrandAvatar extends StatelessWidget {
               .join();
 
     return CircleAvatar(
+      backgroundColor: Colors.white.withValues(alpha: 0.82),
       foregroundImage: imageUrl == null || imageUrl!.isEmpty
           ? null
           : NetworkImage(imageUrl!),
@@ -394,17 +420,15 @@ class _PanelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            child,
-          ],
-        ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }

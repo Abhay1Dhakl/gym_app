@@ -65,61 +65,92 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(
+      body: AuroraBackground(
+        palette: AppTheme.adminPalette,
+        child: Center(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: GlassPanel(
+                padding: const EdgeInsets.all(32),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const BrandChip(
+                      label: 'GymOS Platform',
+                      icon: Icons.workspace_premium,
+                    ),
+                    const SizedBox(height: 28),
                     Text(
-                      'Platform Console',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      'A more premium command center for every gym you launch.',
+                      style: Theme.of(context).textTheme.displaySmall,
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Sign in as super admin to create gym-owner accounts, or sign in as a gym owner to manage members, programs, invoices, and communication.',
+                    const SizedBox(height: 14),
+                    Text(
+                      'Sign in as super admin to create branded gym-owner workspaces, or use a gym-owner account to manage members, billing, and coaching delivery.',
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
                     TextField(
                       controller: _emailController,
-                      decoration: const InputDecoration(labelText: 'Email'),
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.alternate_email_rounded),
+                      ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     TextField(
                       controller: _passwordController,
                       obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Password'),
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: Icon(Icons.lock_outline_rounded),
+                      ),
                     ),
                     if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 22),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: _submitting ? null : _submit,
-                        child: Text(_submitting ? 'Signing in...' : 'Sign in'),
+                        child: Text(
+                          _submitting ? 'Signing in...' : 'Enter Platform',
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Super admin: superadmin@platform.app / superadmin12345',
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Gym owner demo: admin@abhaymethod.app / admin12345',
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: const [
+                        _SeedAccountCard(
+                          label: 'Super admin',
+                          credentials:
+                              'superadmin@platform.app / superadmin12345',
+                        ),
+                        _SeedAccountCard(
+                          label: 'Gym owner demo',
+                          credentials: 'admin@abhaymethod.app / admin12345',
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -127,6 +158,44 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SeedAccountCard extends StatelessWidget {
+  const _SeedAccountCard({required this.label, required this.credentials});
+
+  final String label;
+  final String credentials;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 236,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            credentials,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF475569)),
+          ),
+        ],
       ),
     );
   }

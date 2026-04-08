@@ -101,13 +101,18 @@ class _ClientShellState extends State<ClientShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        toolbarHeight: 84,
         title: Text(widget.session.organizationName ?? 'Gym Client App'),
+        leadingWidth: 78,
         leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: _BrandAvatar(
-            label: widget.session.organizationName ?? 'Gym',
-            imageUrl: widget.session.organizationLogoUrl,
+          padding: const EdgeInsets.only(left: 16),
+          child: Center(
+            child: _BrandAvatar(
+              label: widget.session.organizationName ?? 'Gym',
+              imageUrl: widget.session.organizationLogoUrl,
+            ),
           ),
         ),
         actions: [
@@ -117,57 +122,69 @@ class _ClientShellState extends State<ClientShell> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _navIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _navIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        child: GlassPanel(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          radius: 28,
+          child: NavigationBar(
+            backgroundColor: Colors.transparent,
+            selectedIndex: _navIndex,
+            onDestinationSelected: (index) {
+              setState(() {
+                _navIndex = index;
+              });
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.fitness_center_outlined),
+                selectedIcon: Icon(Icons.fitness_center),
+                label: 'Train',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.restaurant_outlined),
+                selectedIcon: Icon(Icons.restaurant),
+                label: 'Nutrition',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.fact_check_outlined),
+                selectedIcon: Icon(Icons.fact_check),
+                label: 'Check-ins',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.message_outlined),
+                selectedIcon: Icon(Icons.message),
+                label: 'Messages',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Account',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.fitness_center_outlined),
-            selectedIcon: Icon(Icons.fitness_center),
-            label: 'Train',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.restaurant_outlined),
-            selectedIcon: Icon(Icons.restaurant),
-            label: 'Nutrition',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.fact_check_outlined),
-            selectedIcon: Icon(Icons.fact_check),
-            label: 'Check-ins',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.message_outlined),
-            selectedIcon: Icon(Icons.message),
-            label: 'Messages',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Account',
-          ),
-        ],
+        ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: switch (_navIndex) {
-            0 => _buildDashboard(),
-            1 => _withDashboard((data) => _buildTraining(data)),
-            2 => _withDashboard((data) => _buildNutrition(data)),
-            3 => _buildCheckins(),
-            4 => _buildMessages(),
-            _ => _buildAccount(),
-          },
+      body: AuroraBackground(
+        palette: AppTheme.clientPalette,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 96, 16, 16),
+            child: switch (_navIndex) {
+              0 => _buildDashboard(),
+              1 => _withDashboard((data) => _buildTraining(data)),
+              2 => _withDashboard((data) => _buildNutrition(data)),
+              3 => _buildCheckins(),
+              4 => _buildMessages(),
+              _ => _buildAccount(),
+            },
+          ),
         ),
       ),
     );
@@ -192,6 +209,24 @@ class _ClientShellState extends State<ClientShell> {
     return _withDashboard((data) {
       return ListView(
         children: [
+          ScreenIntro(
+            eyebrow: 'Member App',
+            title:
+                'Everything from ${data.organizationName ?? widget.session.organizationName ?? 'your gym'} in one polished place.',
+            subtitle:
+                'Training, nutrition, billing, and coach communication now live inside a more premium member experience.',
+            trailing: BrandChip(
+              label:
+                  data.organizationName ??
+                  widget.session.organizationName ??
+                  'Gym',
+              imageUrl:
+                  data.organizationLogoUrl ??
+                  widget.session.organizationLogoUrl,
+              icon: Icons.wb_sunny_outlined,
+            ),
+          ),
+          const SizedBox(height: 16),
           _SectionCard(
             title:
                 data.organizationName ??
@@ -586,17 +621,16 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 150,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 8),
-              Text(value, style: Theme.of(context).textTheme.titleLarge),
-            ],
-          ),
+      child: GlassPanel(
+        padding: const EdgeInsets.all(16),
+        radius: 24,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 8),
+            Text(value, style: Theme.of(context).textTheme.titleLarge),
+          ],
         ),
       ),
     );
@@ -623,6 +657,7 @@ class _BrandAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
+      backgroundColor: Colors.white.withValues(alpha: 0.82),
       foregroundImage: imageUrl == null || imageUrl!.isEmpty
           ? null
           : NetworkImage(imageUrl!),
@@ -639,17 +674,16 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(16),
+      radius: 28,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          child,
+        ],
       ),
     );
   }

@@ -119,7 +119,10 @@ class _AdminShellState extends State<AdminShell> {
       setState(() {
         _refreshDashboard();
         _refreshClients();
-        _selectClient(created.id);
+        _selectedClientId = created.id;
+        _clientDetailFuture = widget.adminRepository.fetchClientDetail(
+          created.id,
+        );
       });
     } catch (error) {
       _showMessage(error.toString(), error: true);
@@ -204,72 +207,81 @@ class _AdminShellState extends State<AdminShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Row(
-          children: [
-            NavigationRail(
-              selectedIndex: _navIndex,
-              onDestinationSelected: (index) {
-                setState(() {
-                  _navIndex = index;
-                });
-              },
-              leading: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _BrandAvatar(
-                      label: widget.session.organizationName ?? 'Gym',
-                      imageUrl: widget.session.organizationLogoUrl,
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: 92,
-                      child: Text(
-                        widget.session.organizationName ?? 'Gym Admin',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall,
+      body: AuroraBackground(
+        palette: AppTheme.adminPalette,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                GlassPanel(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 18,
+                  ),
+                  child: SizedBox(
+                    width: 140,
+                    child: NavigationRail(
+                      selectedIndex: _navIndex,
+                      onDestinationSelected: (index) {
+                        setState(() {
+                          _navIndex = index;
+                        });
+                      },
+                      groupAlignment: -0.72,
+                      leading: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            BrandChip(
+                              label: widget.session.organizationName ?? 'Gym',
+                              imageUrl: widget.session.organizationLogoUrl,
+                              icon: Icons.fitness_center_rounded,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.session.fullName ?? 'Gym Owner',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.dashboard_outlined),
+                          selectedIcon: Icon(Icons.dashboard),
+                          label: Text('Overview'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.groups_outlined),
+                          selectedIcon: Icon(Icons.groups),
+                          label: Text('Clients'),
+                        ),
+                      ],
+                      trailing: Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: IconButton(
+                            onPressed: widget.onLogout,
+                            icon: const Icon(Icons.logout),
+                            tooltip: 'Log out',
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.dashboard_outlined),
-                  selectedIcon: Icon(Icons.dashboard),
-                  label: Text('Overview'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.groups_outlined),
-                  selectedIcon: Icon(Icons.groups),
-                  label: Text('Clients'),
-                ),
-              ],
-              trailing: Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: IconButton(
-                    onPressed: widget.onLogout,
-                    icon: const Icon(Icons.logout),
-                    tooltip: 'Log out',
                   ),
                 ),
-              ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: _navIndex == 0
+                      ? _buildOverview()
+                      : _buildClientsWorkspace(),
+                ),
+              ],
             ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: _navIndex == 0
-                    ? _buildOverview()
-                    : _buildClientsWorkspace(),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -289,17 +301,24 @@ class _AdminShellState extends State<AdminShell> {
         final data = snapshot.data!;
         return ListView(
           children: [
-            Text(
-              data.organizationName ??
-                  widget.session.organizationName ??
-                  'Gym Admin Overview',
-              style: Theme.of(context).textTheme.headlineMedium,
+            ScreenIntro(
+              eyebrow: 'Gym Workspace',
+              title:
+                  '${data.organizationName ?? widget.session.organizationName ?? 'Gym'} operating system',
+              subtitle:
+                  'Manage members, billing, programs, nutrition, and client communication from one branded control center.',
+              trailing: BrandChip(
+                label:
+                    data.organizationName ??
+                    widget.session.organizationName ??
+                    'Gym',
+                imageUrl:
+                    data.organizationLogoUrl ??
+                    widget.session.organizationLogoUrl,
+                icon: Icons.auto_awesome_rounded,
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Manage your gym members, billing, programming, and coach communication.',
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             Wrap(
               spacing: 16,
               runSpacing: 16,
@@ -322,7 +341,7 @@ class _AdminShellState extends State<AdminShell> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -372,13 +391,16 @@ class _AdminShellState extends State<AdminShell> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${widget.session.organizationName ?? 'Gym'} Client Workspace',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'New members created here stay inside your gym account and inherit your gym branding.',
+        ScreenIntro(
+          eyebrow: 'Members',
+          title: '${widget.session.organizationName ?? 'Gym'} client workspace',
+          subtitle:
+              'New members created here stay inside your gym account and inherit your gym branding.',
+          trailing: BrandChip(
+            label: widget.session.organizationName ?? 'Gym',
+            imageUrl: widget.session.organizationLogoUrl,
+            icon: Icons.groups_rounded,
+          ),
         ),
         const SizedBox(height: 16),
         _PanelCard(
@@ -434,7 +456,7 @@ class _AdminShellState extends State<AdminShell> {
           child: Row(
             children: [
               SizedBox(
-                width: 320,
+                width: 330,
                 child: FutureBuilder<List<ClientSummary>>(
                   future: _clientsFuture,
                   builder: (context, snapshot) {
@@ -446,24 +468,40 @@ class _AdminShellState extends State<AdminShell> {
                     }
 
                     final clients = snapshot.data!;
-                    return Card(
+                    return GlassPanel(
+                      padding: const EdgeInsets.all(14),
                       child: ListView.separated(
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.zero,
                         itemBuilder: (context, index) {
                           final client = clients[index];
-                          return ListTile(
-                            selected: client.id == _selectedClientId,
-                            title: Text(client.fullName),
-                            subtitle: Text(
-                              '${client.goal}\nInvite: ${client.inviteCode}',
+                          final selected = client.id == _selectedClientId;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? const Color(0xFFE0EBFF)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(18),
                             ),
-                            isThreeLine: true,
-                            trailing: Text(client.status),
-                            onTap: () => _selectClient(client.id),
+                            child: ListTile(
+                              selected: selected,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              title: Text(client.fullName),
+                              subtitle: Text(
+                                '${client.goal}\nInvite: ${client.inviteCode}',
+                              ),
+                              isThreeLine: true,
+                              trailing: Text(client.status),
+                              onTap: () => _selectClient(client.id),
+                            ),
                           );
                         },
-                        separatorBuilder: (context, index) =>
-                            const Divider(height: 1),
+                        separatorBuilder: (context, index) => const Divider(
+                          height: 10,
+                          color: Colors.transparent,
+                        ),
                         itemCount: clients.length,
                       ),
                     );
@@ -662,7 +700,7 @@ class _AdminShellState extends State<AdminShell> {
                                       ),
                                     ),
                                     SizedBox(
-                                      width: 160,
+                                      width: 180,
                                       child: TextField(
                                         controller: _invoiceDueController,
                                         decoration: const InputDecoration(
@@ -802,46 +840,17 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 220,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 8),
-              Text(value, style: Theme.of(context).textTheme.headlineMedium),
-            ],
-          ),
+      child: GlassPanel(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 10),
+            Text(value, style: Theme.of(context).textTheme.headlineMedium),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class _BrandAvatar extends StatelessWidget {
-  const _BrandAvatar({required this.label, this.imageUrl});
-
-  final String label;
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = label.trim().isEmpty
-        ? 'GY'
-        : label
-              .trim()
-              .split(RegExp(r'\s+'))
-              .take(2)
-              .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
-              .join();
-
-    return CircleAvatar(
-      radius: 24,
-      foregroundImage: imageUrl == null || imageUrl!.isEmpty
-          ? null
-          : NetworkImage(imageUrl!),
-      child: Text(initials.isEmpty ? 'GY' : initials),
     );
   }
 }
@@ -854,17 +863,15 @@ class _PanelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            child,
-          ],
-        ),
+    return GlassPanel(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }
