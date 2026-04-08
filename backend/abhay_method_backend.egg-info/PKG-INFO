@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: abhay-method-backend
+Version: 0.1.0
+Summary: API backend for the Abhay Method coaching platform.
+Requires-Python: >=3.13
+Requires-Dist: bcrypt==5.0.0
+Requires-Dist: email-validator==2.3.0
+Requires-Dist: fastapi==0.135.3
+Requires-Dist: httpx==0.28.1
+Requires-Dist: jinja2==3.1.6
+Requires-Dist: python-multipart==0.0.24
+Requires-Dist: sqlalchemy==2.0.49
+Requires-Dist: uvicorn[standard]==0.44.0

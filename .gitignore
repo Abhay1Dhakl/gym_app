@@ -1,8 +1,12 @@
 .DS_Store
 .venv/
+__pycache__/
+*.py[cod]
 backend/data/
 **/.dart_tool/
 **/build/
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/.packages
+**/.idea/
+*.iml

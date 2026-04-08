@@ -38,13 +38,7 @@ Create the virtual environment dependencies if needed:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r <(python3 - <<'PY'
-import tomllib
-from pathlib import Path
-data = tomllib.loads(Path("backend/pyproject.toml").read_text())
-print("\n".join(data["project"]["dependencies"]))
-PY
-)
+.venv/bin/pip install -e ./backend
 ```
 
 Run the API:
