@@ -3,17 +3,29 @@ class AuthSession {
     required this.accessToken,
     required this.role,
     required this.userId,
+    required this.fullName,
+    required this.organizationId,
+    required this.organizationName,
+    required this.organizationLogoUrl,
   });
 
   final String accessToken;
   final String role;
   final int userId;
+  final String? fullName;
+  final int? organizationId;
+  final String? organizationName;
+  final String? organizationLogoUrl;
 
   factory AuthSession.fromJson(Map<String, dynamic> json) {
     return AuthSession(
       accessToken: json['access_token'] as String,
       role: json['role'] as String,
       userId: json['user_id'] as int,
+      fullName: json['full_name'] as String?,
+      organizationId: json['organization_id'] as int?,
+      organizationName: json['organization_name'] as String?,
+      organizationLogoUrl: json['organization_logo_url'] as String?,
     );
   }
 
@@ -22,6 +34,10 @@ class AuthSession {
       'access_token': accessToken,
       'role': role,
       'user_id': userId,
+      'full_name': fullName,
+      'organization_id': organizationId,
+      'organization_name': organizationName,
+      'organization_logo_url': organizationLogoUrl,
     };
   }
 }
@@ -161,7 +177,10 @@ class WorkoutDayModel {
       focus: json['focus'] as String,
       notes: json['notes'] as String?,
       exercises: ((json['exercises'] as List<dynamic>? ?? const <dynamic>[])
-          .map((item) => WorkoutExerciseModel.fromJson(item as Map<String, dynamic>))
+          .map(
+            (item) =>
+                WorkoutExerciseModel.fromJson(item as Map<String, dynamic>),
+          )
           .toList()),
     );
   }
@@ -191,9 +210,13 @@ class ProgramModel {
       phase: json['phase'] as String,
       goal: json['goal'] as String,
       summary: json['summary'] as String?,
-      workoutDays: ((json['workout_days'] as List<dynamic>? ?? const <dynamic>[])
-          .map((item) => WorkoutDayModel.fromJson(item as Map<String, dynamic>))
-          .toList()),
+      workoutDays:
+          ((json['workout_days'] as List<dynamic>? ?? const <dynamic>[])
+              .map(
+                (item) =>
+                    WorkoutDayModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList()),
     );
   }
 }
@@ -232,6 +255,8 @@ class NutritionPlanModel {
 
 class AdminDashboardModel {
   const AdminDashboardModel({
+    required this.organizationName,
+    required this.organizationLogoUrl,
     required this.totalClients,
     required this.activeClients,
     required this.invitedClients,
@@ -240,6 +265,8 @@ class AdminDashboardModel {
     required this.recentMessages,
   });
 
+  final String? organizationName;
+  final String? organizationLogoUrl;
   final int totalClients;
   final int activeClients;
   final int invitedClients;
@@ -249,16 +276,84 @@ class AdminDashboardModel {
 
   factory AdminDashboardModel.fromJson(Map<String, dynamic> json) {
     return AdminDashboardModel(
+      organizationName: json['organization_name'] as String?,
+      organizationLogoUrl: json['organization_logo_url'] as String?,
       totalClients: json['total_clients'] as int,
       activeClients: json['active_clients'] as int,
       invitedClients: json['invited_clients'] as int,
       overdueInvoices: json['overdue_invoices'] as int,
-      latestCheckins: ((json['latest_checkins'] as List<dynamic>? ?? const <dynamic>[])
-          .map((item) => CheckInItem.fromJson(item as Map<String, dynamic>))
-          .toList()),
-      recentMessages: ((json['recent_messages'] as List<dynamic>? ?? const <dynamic>[])
-          .map((item) => MessageItem.fromJson(item as Map<String, dynamic>))
-          .toList()),
+      latestCheckins:
+          ((json['latest_checkins'] as List<dynamic>? ?? const <dynamic>[])
+              .map((item) => CheckInItem.fromJson(item as Map<String, dynamic>))
+              .toList()),
+      recentMessages:
+          ((json['recent_messages'] as List<dynamic>? ?? const <dynamic>[])
+              .map((item) => MessageItem.fromJson(item as Map<String, dynamic>))
+              .toList()),
+    );
+  }
+}
+
+class SuperAdminDashboardModel {
+  const SuperAdminDashboardModel({
+    required this.totalGyms,
+    required this.totalAdmins,
+    required this.totalClients,
+    required this.activeClients,
+    required this.invitedClients,
+  });
+
+  final int totalGyms;
+  final int totalAdmins;
+  final int totalClients;
+  final int activeClients;
+  final int invitedClients;
+
+  factory SuperAdminDashboardModel.fromJson(Map<String, dynamic> json) {
+    return SuperAdminDashboardModel(
+      totalGyms: json['total_gyms'] as int,
+      totalAdmins: json['total_admins'] as int,
+      totalClients: json['total_clients'] as int,
+      activeClients: json['active_clients'] as int,
+      invitedClients: json['invited_clients'] as int,
+    );
+  }
+}
+
+class GymAdminSummary {
+  const GymAdminSummary({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.organizationId,
+    required this.gymName,
+    required this.gymLogoUrl,
+    required this.activeClients,
+    required this.invitedClients,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String? fullName;
+  final String email;
+  final int organizationId;
+  final String gymName;
+  final String? gymLogoUrl;
+  final int activeClients;
+  final int invitedClients;
+  final DateTime createdAt;
+
+  factory GymAdminSummary.fromJson(Map<String, dynamic> json) {
+    return GymAdminSummary(
+      id: json['id'] as int,
+      fullName: json['full_name'] as String?,
+      email: json['email'] as String,
+      organizationId: json['organization_id'] as int,
+      gymName: json['gym_name'] as String,
+      gymLogoUrl: json['gym_logo_url'] as String?,
+      activeClients: json['active_clients'] as int,
+      invitedClients: json['invited_clients'] as int,
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 }
@@ -344,10 +439,14 @@ class ClientDetailModel {
       notes: json['notes'] as String?,
       status: json['status'] as String,
       inviteCode: json['invite_code'] as String,
-      program: json['program'] == null ? null : ProgramModel.fromJson(json['program'] as Map<String, dynamic>),
+      program: json['program'] == null
+          ? null
+          : ProgramModel.fromJson(json['program'] as Map<String, dynamic>),
       nutritionPlan: json['nutrition_plan'] == null
           ? null
-          : NutritionPlanModel.fromJson(json['nutrition_plan'] as Map<String, dynamic>),
+          : NutritionPlanModel.fromJson(
+              json['nutrition_plan'] as Map<String, dynamic>,
+            ),
       checkins: ((json['checkins'] as List<dynamic>? ?? const <dynamic>[])
           .map((item) => CheckInItem.fromJson(item as Map<String, dynamic>))
           .toList()),
@@ -365,6 +464,8 @@ class ClientDashboardModel {
   const ClientDashboardModel({
     required this.clientId,
     required this.clientName,
+    required this.organizationName,
+    required this.organizationLogoUrl,
     required this.goal,
     required this.status,
     required this.todayFocus,
@@ -377,6 +478,8 @@ class ClientDashboardModel {
 
   final int clientId;
   final String clientName;
+  final String? organizationName;
+  final String? organizationLogoUrl;
   final String goal;
   final String status;
   final String? todayFocus;
@@ -390,22 +493,31 @@ class ClientDashboardModel {
     return ClientDashboardModel(
       clientId: json['client_id'] as int,
       clientName: json['client_name'] as String,
+      organizationName: json['organization_name'] as String?,
+      organizationLogoUrl: json['organization_logo_url'] as String?,
       goal: json['goal'] as String,
       status: json['status'] as String,
       todayFocus: json['today_focus'] as String?,
-      program: json['program'] == null ? null : ProgramModel.fromJson(json['program'] as Map<String, dynamic>),
+      program: json['program'] == null
+          ? null
+          : ProgramModel.fromJson(json['program'] as Map<String, dynamic>),
       nutritionPlan: json['nutrition_plan'] == null
           ? null
-          : NutritionPlanModel.fromJson(json['nutrition_plan'] as Map<String, dynamic>),
-      recentCheckins: ((json['recent_checkins'] as List<dynamic>? ?? const <dynamic>[])
-          .map((item) => CheckInItem.fromJson(item as Map<String, dynamic>))
-          .toList()),
-      recentMessages: ((json['recent_messages'] as List<dynamic>? ?? const <dynamic>[])
-          .map((item) => MessageItem.fromJson(item as Map<String, dynamic>))
-          .toList()),
-      upcomingInvoices: ((json['upcoming_invoices'] as List<dynamic>? ?? const <dynamic>[])
-          .map((item) => InvoiceItem.fromJson(item as Map<String, dynamic>))
-          .toList()),
+          : NutritionPlanModel.fromJson(
+              json['nutrition_plan'] as Map<String, dynamic>,
+            ),
+      recentCheckins:
+          ((json['recent_checkins'] as List<dynamic>? ?? const <dynamic>[])
+              .map((item) => CheckInItem.fromJson(item as Map<String, dynamic>))
+              .toList()),
+      recentMessages:
+          ((json['recent_messages'] as List<dynamic>? ?? const <dynamic>[])
+              .map((item) => MessageItem.fromJson(item as Map<String, dynamic>))
+              .toList()),
+      upcomingInvoices:
+          ((json['upcoming_invoices'] as List<dynamic>? ?? const <dynamic>[])
+              .map((item) => InvoiceItem.fromJson(item as Map<String, dynamic>))
+              .toList()),
     );
   }
 }

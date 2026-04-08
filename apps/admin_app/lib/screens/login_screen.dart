@@ -16,8 +16,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'admin@abhaymethod.app');
-  final _passwordController = TextEditingController(text: 'admin12345');
+  final _emailController = TextEditingController(
+    text: 'superadmin@platform.app',
+  );
+  final _passwordController = TextEditingController(text: 'superadmin12345');
   bool _submitting = false;
   String? _error;
 
@@ -39,9 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      if (session.role != 'admin') {
+      if (session.role != 'admin' && session.role != 'super_admin') {
         await widget.authRepository.logout();
-        throw const ApiException('This account is not an admin account.');
+        throw const ApiException('This account does not have admin access.');
       }
       widget.onAuthenticated(session);
     } catch (error) {
@@ -75,10 +77,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Admin Console', style: Theme.of(context).textTheme.headlineMedium),
+                    Text(
+                      'Platform Console',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Log in as the coach to manage clients, programs, invoices, and communication.',
+                      'Sign in as super admin to create gym-owner accounts, or sign in as a gym owner to manage members, programs, invoices, and communication.',
                     ),
                     const SizedBox(height: 24),
                     TextField(
@@ -95,7 +100,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 12),
                       Text(
                         _error!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 20),
@@ -107,7 +114,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Seed account: admin@abhaymethod.app / admin12345'),
+                    const Text(
+                      'Super admin: superadmin@platform.app / superadmin12345',
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Gym owner demo: admin@abhaymethod.app / admin12345',
+                    ),
                   ],
                 ),
               ),

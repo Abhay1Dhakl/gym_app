@@ -10,6 +10,8 @@ from app.schemas.admin import CheckInResponse, InvoiceResponse, MessageResponse,
 class ClientDashboardResponse(BaseModel):
     client_id: int
     client_name: str
+    organization_name: str | None = None
+    organization_logo_url: str | None = None
     goal: str
     status: str
     today_focus: str | None

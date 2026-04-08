@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 class AdminShell extends StatefulWidget {
   const AdminShell({
     super.key,
+    required this.session,
     required this.adminRepository,
     required this.authRepository,
     required this.onLogout,
   });
 
+  final AuthSession session;
   final AdminRepository adminRepository;
   final AuthRepository authRepository;
   final Future<void> Function() onLogout;
@@ -38,7 +40,9 @@ class _AdminShellState extends State<AdminShell> {
   final _nutritionNotesController = TextEditingController();
 
   final _messageController = TextEditingController();
-  final _invoiceTitleController = TextEditingController(text: 'Monthly Coaching');
+  final _invoiceTitleController = TextEditingController(
+    text: 'Monthly Coaching',
+  );
   final _invoiceAmountController = TextEditingController(text: '420');
   final _invoiceDueController = TextEditingController(text: '2026-04-21');
 
@@ -76,7 +80,9 @@ class _AdminShellState extends State<AdminShell> {
   void _refreshClients() {
     _clientsFuture = widget.adminRepository.fetchClients();
     if (_selectedClientId != null) {
-      _clientDetailFuture = widget.adminRepository.fetchClientDetail(_selectedClientId!);
+      _clientDetailFuture = widget.adminRepository.fetchClientDetail(
+        _selectedClientId!,
+      );
     }
   }
 
@@ -92,16 +98,24 @@ class _AdminShellState extends State<AdminShell> {
       final created = await widget.adminRepository.createClient(
         fullName: _nameController.text.trim(),
         goal: _goalController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        email: _emailController.text.trim().isEmpty
+            ? null
+            : _emailController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
       _nameController.clear();
       _goalController.clear();
       _emailController.clear();
       _phoneController.clear();
       _notesController.clear();
-      _showMessage('Created ${created.fullName}. Invite code: ${created.inviteCode}');
+      _showMessage(
+        'Created ${created.fullName}. Invite code: ${created.inviteCode}',
+      );
       setState(() {
         _refreshDashboard();
         _refreshClients();
@@ -134,7 +148,9 @@ class _AdminShellState extends State<AdminShell> {
         carbs: int.parse(_carbsController.text),
         fats: int.parse(_fatsController.text),
         waterLiters: double.tryParse(_waterController.text),
-        notes: _nutritionNotesController.text.trim().isEmpty ? null : _nutritionNotesController.text.trim(),
+        notes: _nutritionNotesController.text.trim().isEmpty
+            ? null
+            : _nutritionNotesController.text.trim(),
       );
       _showMessage('Nutrition plan saved.');
       setState(_refreshClients);
@@ -162,7 +178,8 @@ class _AdminShellState extends State<AdminShell> {
       await widget.adminRepository.createInvoice(
         clientId: detail.id,
         title: _invoiceTitleController.text.trim(),
-        amountCents: (double.parse(_invoiceAmountController.text) * 100).round(),
+        amountCents: (double.parse(_invoiceAmountController.text) * 100)
+            .round(),
         dueDate: DateTime.parse(_invoiceDueController.text),
       );
       _showMessage('Invoice created.');
@@ -199,7 +216,26 @@ class _AdminShellState extends State<AdminShell> {
               },
               leading: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Text('AM', style: Theme.of(context).textTheme.headlineSmall),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _BrandAvatar(
+                      label: widget.session.organizationName ?? 'Gym',
+                      imageUrl: widget.session.organizationLogoUrl,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: 92,
+                      child: Text(
+                        widget.session.organizationName ?? 'Gym Admin',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               destinations: const [
                 NavigationRailDestination(
@@ -228,7 +264,9 @@ class _AdminShellState extends State<AdminShell> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: _navIndex == 0 ? _buildOverview() : _buildClientsWorkspace(),
+                child: _navIndex == 0
+                    ? _buildOverview()
+                    : _buildClientsWorkspace(),
               ),
             ),
           ],
@@ -251,16 +289,37 @@ class _AdminShellState extends State<AdminShell> {
         final data = snapshot.data!;
         return ListView(
           children: [
-            Text('Admin Overview', style: Theme.of(context).textTheme.headlineMedium),
+            Text(
+              data.organizationName ??
+                  widget.session.organizationName ??
+                  'Gym Admin Overview',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Manage your gym members, billing, programming, and coach communication.',
+            ),
             const SizedBox(height: 24),
             Wrap(
               spacing: 16,
               runSpacing: 16,
               children: [
-                _MetricCard(label: 'Total clients', value: '${data.totalClients}'),
-                _MetricCard(label: 'Active clients', value: '${data.activeClients}'),
-                _MetricCard(label: 'Invited clients', value: '${data.invitedClients}'),
-                _MetricCard(label: 'Overdue invoices', value: '${data.overdueInvoices}'),
+                _MetricCard(
+                  label: 'Total clients',
+                  value: '${data.totalClients}',
+                ),
+                _MetricCard(
+                  label: 'Active clients',
+                  value: '${data.activeClients}',
+                ),
+                _MetricCard(
+                  label: 'Invited clients',
+                  value: '${data.invitedClients}',
+                ),
+                _MetricCard(
+                  label: 'Overdue invoices',
+                  value: '${data.overdueInvoices}',
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -313,20 +372,60 @@ class _AdminShellState extends State<AdminShell> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Client Workspace', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          '${widget.session.organizationName ?? 'Gym'} Client Workspace',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'New members created here stay inside your gym account and inherit your gym branding.',
+        ),
         const SizedBox(height: 16),
         _PanelCard(
-          title: 'Create client',
+          title: 'Create gym client',
           child: Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              SizedBox(width: 220, child: TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Full name'))),
-              SizedBox(width: 240, child: TextField(controller: _goalController, decoration: const InputDecoration(labelText: 'Primary goal'))),
-              SizedBox(width: 220, child: TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Contact email'))),
-              SizedBox(width: 180, child: TextField(controller: _phoneController, decoration: const InputDecoration(labelText: 'Phone'))),
-              SizedBox(width: 320, child: TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notes'))),
-              FilledButton(onPressed: _createClient, child: const Text('Create client')),
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Full name'),
+                ),
+              ),
+              SizedBox(
+                width: 240,
+                child: TextField(
+                  controller: _goalController,
+                  decoration: const InputDecoration(labelText: 'Primary goal'),
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(labelText: 'Contact email'),
+                ),
+              ),
+              SizedBox(
+                width: 180,
+                child: TextField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone'),
+                ),
+              ),
+              SizedBox(
+                width: 320,
+                child: TextField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                ),
+              ),
+              FilledButton(
+                onPressed: _createClient,
+                child: const Text('Create client'),
+              ),
             ],
           ),
         ),
@@ -355,13 +454,16 @@ class _AdminShellState extends State<AdminShell> {
                           return ListTile(
                             selected: client.id == _selectedClientId,
                             title: Text(client.fullName),
-                            subtitle: Text('${client.goal}\nInvite: ${client.inviteCode}'),
+                            subtitle: Text(
+                              '${client.goal}\nInvite: ${client.inviteCode}',
+                            ),
                             isThreeLine: true,
                             trailing: Text(client.status),
                             onTap: () => _selectClient(client.id),
                           );
                         },
-                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
                         itemCount: clients.length,
                       ),
                     );
@@ -371,15 +473,24 @@ class _AdminShellState extends State<AdminShell> {
               const SizedBox(width: 16),
               Expanded(
                 child: _clientDetailFuture == null
-                    ? const Center(child: Text('Select a client to open the detail workspace.'))
+                    ? const Center(
+                        child: Text(
+                          'Select a client to open the detail workspace.',
+                        ),
+                      )
                     : FutureBuilder<ClientDetailModel>(
                         future: _clientDetailFuture,
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState != ConnectionState.done) {
-                            return const Center(child: CircularProgressIndicator());
+                          if (snapshot.connectionState !=
+                              ConnectionState.done) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
                           }
                           if (snapshot.hasError) {
-                            return Center(child: Text(snapshot.error.toString()));
+                            return Center(
+                              child: Text(snapshot.error.toString()),
+                            );
                           }
 
                           final detail = snapshot.data!;
@@ -393,11 +504,17 @@ class _AdminShellState extends State<AdminShell> {
                                   children: [
                                     Chip(label: Text(detail.status)),
                                     Chip(label: Text(detail.goal)),
-                                    Chip(label: Text('Invite ${detail.inviteCode}')),
+                                    Chip(
+                                      label: Text(
+                                        'Invite ${detail.inviteCode}',
+                                      ),
+                                    ),
                                     OutlinedButton.icon(
                                       onPressed: () => _publishProgram(detail),
                                       icon: const Icon(Icons.fitness_center),
-                                      label: const Text('Publish starter program'),
+                                      label: const Text(
+                                        'Publish starter program',
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -410,29 +527,81 @@ class _AdminShellState extends State<AdminShell> {
                                     child: _PanelCard(
                                       title: 'Nutrition',
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Wrap(
                                             spacing: 12,
                                             runSpacing: 12,
                                             children: [
-                                              SizedBox(width: 120, child: TextField(controller: _caloriesController, decoration: const InputDecoration(labelText: 'Calories'))),
-                                              SizedBox(width: 120, child: TextField(controller: _proteinController, decoration: const InputDecoration(labelText: 'Protein'))),
-                                              SizedBox(width: 120, child: TextField(controller: _carbsController, decoration: const InputDecoration(labelText: 'Carbs'))),
-                                              SizedBox(width: 120, child: TextField(controller: _fatsController, decoration: const InputDecoration(labelText: 'Fats'))),
-                                              SizedBox(width: 120, child: TextField(controller: _waterController, decoration: const InputDecoration(labelText: 'Water (L)'))),
+                                              SizedBox(
+                                                width: 120,
+                                                child: TextField(
+                                                  controller:
+                                                      _caloriesController,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'Calories',
+                                                      ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 120,
+                                                child: TextField(
+                                                  controller:
+                                                      _proteinController,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'Protein',
+                                                      ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 120,
+                                                child: TextField(
+                                                  controller: _carbsController,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'Carbs',
+                                                      ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 120,
+                                                child: TextField(
+                                                  controller: _fatsController,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'Fats',
+                                                      ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 120,
+                                                child: TextField(
+                                                  controller: _waterController,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        labelText: 'Water (L)',
+                                                      ),
+                                                ),
+                                              ),
                                             ],
                                           ),
                                           const SizedBox(height: 12),
                                           TextField(
-                                            controller: _nutritionNotesController,
+                                            controller:
+                                                _nutritionNotesController,
                                             minLines: 2,
                                             maxLines: 3,
-                                            decoration: const InputDecoration(labelText: 'Nutrition notes'),
+                                            decoration: const InputDecoration(
+                                              labelText: 'Nutrition notes',
+                                            ),
                                           ),
                                           const SizedBox(height: 12),
                                           FilledButton(
-                                            onPressed: () => _saveNutrition(detail),
+                                            onPressed: () =>
+                                                _saveNutrition(detail),
                                             child: const Text('Save nutrition'),
                                           ),
                                         ],
@@ -444,17 +613,21 @@ class _AdminShellState extends State<AdminShell> {
                                     child: _PanelCard(
                                       title: 'Message client',
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           TextField(
                                             controller: _messageController,
                                             minLines: 4,
                                             maxLines: 6,
-                                            decoration: const InputDecoration(labelText: 'Message body'),
+                                            decoration: const InputDecoration(
+                                              labelText: 'Message body',
+                                            ),
                                           ),
                                           const SizedBox(height: 12),
                                           FilledButton(
-                                            onPressed: () => _sendMessage(detail),
+                                            onPressed: () =>
+                                                _sendMessage(detail),
                                             child: const Text('Send message'),
                                           ),
                                         ],
@@ -470,10 +643,37 @@ class _AdminShellState extends State<AdminShell> {
                                   spacing: 12,
                                   runSpacing: 12,
                                   children: [
-                                    SizedBox(width: 220, child: TextField(controller: _invoiceTitleController, decoration: const InputDecoration(labelText: 'Title'))),
-                                    SizedBox(width: 160, child: TextField(controller: _invoiceAmountController, decoration: const InputDecoration(labelText: 'Amount'))),
-                                    SizedBox(width: 160, child: TextField(controller: _invoiceDueController, decoration: const InputDecoration(labelText: 'Due date YYYY-MM-DD'))),
-                                    FilledButton(onPressed: () => _createInvoice(detail), child: const Text('Create invoice')),
+                                    SizedBox(
+                                      width: 220,
+                                      child: TextField(
+                                        controller: _invoiceTitleController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Title',
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 160,
+                                      child: TextField(
+                                        controller: _invoiceAmountController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Amount',
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 160,
+                                      child: TextField(
+                                        controller: _invoiceDueController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Due date YYYY-MM-DD',
+                                        ),
+                                      ),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => _createInvoice(detail),
+                                      child: const Text('Create invoice'),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -485,15 +685,20 @@ class _AdminShellState extends State<AdminShell> {
                                     child: _PanelCard(
                                       title: 'Program',
                                       child: Column(
-                                        children: (detail.program?.workoutDays ?? const <WorkoutDayModel>[])
-                                            .map(
-                                              (day) => ListTile(
-                                                contentPadding: EdgeInsets.zero,
-                                                title: Text('Day ${day.dayIndex}: ${day.title}'),
-                                                subtitle: Text(day.focus),
-                                              ),
-                                            )
-                                            .toList(),
+                                        children:
+                                            (detail.program?.workoutDays ??
+                                                    const <WorkoutDayModel>[])
+                                                .map(
+                                                  (day) => ListTile(
+                                                    contentPadding:
+                                                        EdgeInsets.zero,
+                                                    title: Text(
+                                                      'Day ${day.dayIndex}: ${day.title}',
+                                                    ),
+                                                    subtitle: Text(day.focus),
+                                                  ),
+                                                )
+                                                .toList(),
                                       ),
                                     ),
                                   ),
@@ -507,7 +712,12 @@ class _AdminShellState extends State<AdminShell> {
                                               (invoice) => ListTile(
                                                 contentPadding: EdgeInsets.zero,
                                                 title: Text(invoice.title),
-                                                subtitle: Text(invoice.dueDate.toIso8601String().split('T').first),
+                                                subtitle: Text(
+                                                  invoice.dueDate
+                                                      .toIso8601String()
+                                                      .split('T')
+                                                      .first,
+                                                ),
                                                 trailing: Text(invoice.status),
                                               ),
                                             )
@@ -529,7 +739,10 @@ class _AdminShellState extends State<AdminShell> {
                                             .map(
                                               (message) => ListTile(
                                                 contentPadding: EdgeInsets.zero,
-                                                title: Text(message.senderRole.toUpperCase()),
+                                                title: Text(
+                                                  message.senderRole
+                                                      .toUpperCase(),
+                                                ),
                                                 subtitle: Text(message.body),
                                               ),
                                             )
@@ -546,9 +759,18 @@ class _AdminShellState extends State<AdminShell> {
                                             .map(
                                               (checkin) => ListTile(
                                                 contentPadding: EdgeInsets.zero,
-                                                title: Text(checkin.submittedAt.toIso8601String().split('T').first),
-                                                subtitle: Text(checkin.notes ?? 'No notes'),
-                                                trailing: Text('${checkin.adherenceScore ?? 0}%'),
+                                                title: Text(
+                                                  checkin.submittedAt
+                                                      .toIso8601String()
+                                                      .split('T')
+                                                      .first,
+                                                ),
+                                                subtitle: Text(
+                                                  checkin.notes ?? 'No notes',
+                                                ),
+                                                trailing: Text(
+                                                  '${checkin.adherenceScore ?? 0}%',
+                                                ),
                                               ),
                                             )
                                             .toList(),
@@ -571,10 +793,7 @@ class _AdminShellState extends State<AdminShell> {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-  });
+  const _MetricCard({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -600,11 +819,35 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
+class _BrandAvatar extends StatelessWidget {
+  const _BrandAvatar({required this.label, this.imageUrl});
+
+  final String label;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = label.trim().isEmpty
+        ? 'GY'
+        : label
+              .trim()
+              .split(RegExp(r'\s+'))
+              .take(2)
+              .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
+              .join();
+
+    return CircleAvatar(
+      radius: 24,
+      foregroundImage: imageUrl == null || imageUrl!.isEmpty
+          ? null
+          : NetworkImage(imageUrl!),
+      child: Text(initials.isEmpty ? 'GY' : initials),
+    );
+  }
+}
+
 class _PanelCard extends StatelessWidget {
-  const _PanelCard({
-    required this.title,
-    required this.child,
-  });
+  const _PanelCard({required this.title, required this.child});
 
   final String title;
   final Widget child;

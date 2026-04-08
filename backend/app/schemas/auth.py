@@ -21,12 +21,20 @@ class AuthResponse(BaseModel):
     token_type: str = "bearer"
     role: str
     user_id: int
+    full_name: str | None = None
+    organization_id: int | None = None
+    organization_name: str | None = None
+    organization_logo_url: str | None = None
 
 
 class MeResponse(BaseModel):
     id: int
     email: EmailStr
     role: str
+    full_name: str | None = None
+    organization_id: int | None = None
+    organization_name: str | None = None
+    organization_logo_url: str | None = None
     client_id: int | None = None
     client_name: str | None = None
     expires_at: datetime | None = None

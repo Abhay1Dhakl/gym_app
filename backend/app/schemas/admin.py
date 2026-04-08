@@ -162,6 +162,8 @@ class ClientDetailResponse(BaseModel):
 
 
 class AdminDashboardResponse(BaseModel):
+    organization_name: str | None = None
+    organization_logo_url: str | None = None
     total_clients: int
     active_clients: int
     invited_clients: int

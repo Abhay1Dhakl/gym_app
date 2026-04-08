@@ -1,10 +1,10 @@
 # Abhay Method Platform
 
-This repo is now a real multi-app foundation for a personal coaching platform:
+This repo is now a real multi-app foundation for a multi-tenant gym coaching platform:
 
-- `backend/`: FastAPI API, SQLite persistence, token auth, seeded demo data
-- `apps/admin_app/`: Flutter admin console for managing clients and operations
-- `apps/client_app/`: Flutter client app for workouts, nutrition, check-ins, messages, and billing
+- `backend/`: FastAPI API, SQLite persistence, token auth, seeded demo data, and tenant-aware gym ownership
+- `apps/admin_app/`: Flutter console used by both the platform super admin and gym-owner admins
+- `apps/client_app/`: Flutter client app for workouts, nutrition, check-ins, messages, and billing, branded per gym
 - `packages/coach_flow_core/`: shared Dart models, API client, session storage, and themes
 
 ## Stack
@@ -52,6 +52,8 @@ Useful endpoints:
 - `GET /api/health`
 - `POST /api/auth/login`
 - `POST /api/auth/client/activate`
+- `GET /api/super-admin/dashboard`
+- `POST /api/super-admin/admins`
 - `GET /api/admin/dashboard`
 - `GET /api/client/dashboard`
 
@@ -75,21 +77,24 @@ For Android emulators, the default base URL fallback is already `http://10.0.2.2
 
 ## Seeded Accounts
 
-- admin: `admin@abhaymethod.app` / `admin12345`
+- super admin: `superadmin@platform.app` / `superadmin12345`
+- gym owner admin: `admin@abhaymethod.app` / `admin12345`
 - demo client: `maya@example.com` / `client12345`
 - client activation invite: `ROHAN-START`
 
 ## What Works Now
 
-- admin login
+- super admin login
+- create branded gym-owner accounts with gym name and logo URL
+- organization-scoped gym owner login
 - client login and invite activation
-- create multiple clients
+- create multiple clients per gym owner
 - view client detail
 - publish a starter training program
 - save nutrition targets
 - send coach messages
 - create invoices
-- client dashboard
+- gym-branded client dashboard
 - client training, nutrition, check-ins, messages, and billing views
 - dynamic backend data persisted in SQLite
 

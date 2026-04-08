@@ -26,6 +26,8 @@ def dashboard(profile: ClientProfile = Depends(get_current_client_profile)) -> C
     return ClientDashboardResponse(
         client_id=profile.id,
         client_name=profile.full_name,
+        organization_name=profile.organization.name if profile.organization else None,
+        organization_logo_url=profile.organization.logo_url if profile.organization else None,
         goal=profile.goal,
         status=profile.status.value,
         today_focus=today_focus,

@@ -22,8 +22,14 @@ class _ClientAppState extends State<ClientApp> {
   void initState() {
     super.initState();
     _sessionStore = SessionStore();
-    _apiClient = ApiClient(baseUrl: ApiConfig.resolveBaseUrl(), sessionStore: _sessionStore);
-    _authRepository = AuthRepository(apiClient: _apiClient, sessionStore: _sessionStore);
+    _apiClient = ApiClient(
+      baseUrl: ApiConfig.resolveBaseUrl(),
+      sessionStore: _sessionStore,
+    );
+    _authRepository = AuthRepository(
+      apiClient: _apiClient,
+      sessionStore: _sessionStore,
+    );
     _clientRepository = ClientRepository(apiClient: _apiClient);
     _sessionFuture = _authRepository.restoreSession();
   }
@@ -54,12 +60,15 @@ class _ClientAppState extends State<ClientApp> {
         future: _sessionFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
           }
 
           final session = snapshot.data;
           if (session != null && session.role == 'client') {
             return ClientShell(
+              session: session,
               clientRepository: _clientRepository,
               onLogout: _handleLogout,
             );

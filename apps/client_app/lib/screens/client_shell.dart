@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 class ClientShell extends StatefulWidget {
   const ClientShell({
     super.key,
+    required this.session,
     required this.clientRepository,
     required this.onLogout,
   });
 
+  final AuthSession session;
   final ClientRepository clientRepository;
   final Future<void> Function() onLogout;
 
@@ -60,7 +62,9 @@ class _ClientShellState extends State<ClientShell> {
         sleepScore: int.tryParse(_sleepController.text),
         stressScore: int.tryParse(_stressController.text),
         adherenceScore: int.tryParse(_adherenceController.text),
-        notes: _checkinNotesController.text.trim().isEmpty ? null : _checkinNotesController.text.trim(),
+        notes: _checkinNotesController.text.trim().isEmpty
+            ? null
+            : _checkinNotesController.text.trim(),
       );
       _weightController.clear();
       _checkinNotesController.clear();
@@ -98,7 +102,14 @@ class _ClientShellState extends State<ClientShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Abhay Method'),
+        title: Text(widget.session.organizationName ?? 'Gym Client App'),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: _BrandAvatar(
+            label: widget.session.organizationName ?? 'Gym',
+            imageUrl: widget.session.organizationLogoUrl,
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: widget.onLogout,
@@ -114,12 +125,36 @@ class _ClientShellState extends State<ClientShell> {
           });
         },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.fitness_center_outlined), selectedIcon: Icon(Icons.fitness_center), label: 'Train'),
-          NavigationDestination(icon: Icon(Icons.restaurant_outlined), selectedIcon: Icon(Icons.restaurant), label: 'Nutrition'),
-          NavigationDestination(icon: Icon(Icons.fact_check_outlined), selectedIcon: Icon(Icons.fact_check), label: 'Check-ins'),
-          NavigationDestination(icon: Icon(Icons.message_outlined), selectedIcon: Icon(Icons.message), label: 'Messages'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Account'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.fitness_center_outlined),
+            selectedIcon: Icon(Icons.fitness_center),
+            label: 'Train',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.restaurant_outlined),
+            selectedIcon: Icon(Icons.restaurant),
+            label: 'Nutrition',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.fact_check_outlined),
+            selectedIcon: Icon(Icons.fact_check),
+            label: 'Check-ins',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.message_outlined),
+            selectedIcon: Icon(Icons.message),
+            label: 'Messages',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Account',
+          ),
         ],
       ),
       body: SafeArea(
@@ -157,7 +192,38 @@ class _ClientShellState extends State<ClientShell> {
     return _withDashboard((data) {
       return ListView(
         children: [
-          Text('Hello, ${data.clientName}', style: Theme.of(context).textTheme.headlineMedium),
+          _SectionCard(
+            title:
+                data.organizationName ??
+                widget.session.organizationName ??
+                'Your gym',
+            child: Row(
+              children: [
+                _BrandAvatar(
+                  label:
+                      data.organizationName ??
+                      widget.session.organizationName ??
+                      'Gym',
+                  imageUrl:
+                      data.organizationLogoUrl ??
+                      widget.session.organizationLogoUrl,
+                  radius: 28,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Your training, nutrition, billing, and coach communication are tied to this gym account.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Hello, ${data.clientName}',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 8),
           Text(data.goal),
           const SizedBox(height: 20),
@@ -166,8 +232,14 @@ class _ClientShellState extends State<ClientShell> {
             runSpacing: 12,
             children: [
               _SummaryCard(label: 'Status', value: data.status),
-              _SummaryCard(label: 'Today', value: data.todayFocus ?? 'Rest / recovery'),
-              _SummaryCard(label: 'Upcoming invoices', value: '${data.upcomingInvoices.length}'),
+              _SummaryCard(
+                label: 'Today',
+                value: data.todayFocus ?? 'Rest / recovery',
+              ),
+              _SummaryCard(
+                label: 'Upcoming invoices',
+                value: '${data.upcomingInvoices.length}',
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -193,7 +265,9 @@ class _ClientShellState extends State<ClientShell> {
                   .map(
                     (checkin) => ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(checkin.submittedAt.toIso8601String().split('T').first),
+                      title: Text(
+                        checkin.submittedAt.toIso8601String().split('T').first,
+                      ),
                       subtitle: Text(checkin.notes ?? 'No notes'),
                       trailing: Text('${checkin.adherenceScore ?? 0}%'),
                     ),
@@ -209,7 +283,9 @@ class _ClientShellState extends State<ClientShell> {
   Widget _buildTraining(ClientDashboardModel data) {
     final program = data.program;
     if (program == null) {
-      return const Center(child: Text('Your coach has not published a program yet.'));
+      return const Center(
+        child: Text('Your coach has not published a program yet.'),
+      );
     }
 
     return ListView(
@@ -232,7 +308,9 @@ class _ClientShellState extends State<ClientShell> {
                     (exercise) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(exercise.name),
-                      subtitle: Text('${exercise.sets} sets x ${exercise.reps} reps'),
+                      subtitle: Text(
+                        '${exercise.sets} sets x ${exercise.reps} reps',
+                      ),
                       trailing: Text(exercise.target ?? ''),
                     ),
                   ),
@@ -248,7 +326,9 @@ class _ClientShellState extends State<ClientShell> {
   Widget _buildNutrition(ClientDashboardModel data) {
     final nutrition = data.nutritionPlan;
     if (nutrition == null) {
-      return const Center(child: Text('Your coach has not published nutrition targets yet.'));
+      return const Center(
+        child: Text('Your coach has not published nutrition targets yet.'),
+      );
     }
 
     return ListView(
@@ -292,15 +372,41 @@ class _ClientShellState extends State<ClientShell> {
               title: 'Submit weekly check-in',
               child: Column(
                 children: [
-                  TextField(controller: _weightController, decoration: const InputDecoration(labelText: 'Body weight (kg)')),
+                  TextField(
+                    controller: _weightController,
+                    decoration: const InputDecoration(
+                      labelText: 'Body weight (kg)',
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: TextField(controller: _sleepController, decoration: const InputDecoration(labelText: 'Sleep 1-5'))),
+                      Expanded(
+                        child: TextField(
+                          controller: _sleepController,
+                          decoration: const InputDecoration(
+                            labelText: 'Sleep 1-5',
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 12),
-                      Expanded(child: TextField(controller: _stressController, decoration: const InputDecoration(labelText: 'Stress 1-5'))),
+                      Expanded(
+                        child: TextField(
+                          controller: _stressController,
+                          decoration: const InputDecoration(
+                            labelText: 'Stress 1-5',
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 12),
-                      Expanded(child: TextField(controller: _adherenceController, decoration: const InputDecoration(labelText: 'Adherence %'))),
+                      Expanded(
+                        child: TextField(
+                          controller: _adherenceController,
+                          decoration: const InputDecoration(
+                            labelText: 'Adherence %',
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -329,7 +435,12 @@ class _ClientShellState extends State<ClientShell> {
                     .map(
                       (checkin) => ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text(checkin.submittedAt.toIso8601String().split('T').first),
+                        title: Text(
+                          checkin.submittedAt
+                              .toIso8601String()
+                              .split('T')
+                              .first,
+                        ),
                         subtitle: Text(checkin.notes ?? 'No notes'),
                         trailing: Text('${checkin.adherenceScore ?? 0}%'),
                       ),
@@ -414,6 +525,25 @@ class _ClientShellState extends State<ClientShell> {
         return ListView(
           children: [
             _SectionCard(
+              title: 'Gym account',
+              child: Row(
+                children: [
+                  _BrandAvatar(
+                    label: widget.session.organizationName ?? 'Gym',
+                    imageUrl: widget.session.organizationLogoUrl,
+                    radius: 28,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      widget.session.organizationName ?? 'Gym Client App',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _SectionCard(
               title: 'Billing',
               child: Column(
                 children: invoices
@@ -421,7 +551,9 @@ class _ClientShellState extends State<ClientShell> {
                       (invoice) => ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(invoice.title),
-                        subtitle: Text(invoice.dueDate.toIso8601String().split('T').first),
+                        subtitle: Text(
+                          invoice.dueDate.toIso8601String().split('T').first,
+                        ),
                         trailing: Text(invoice.status),
                       ),
                     )
@@ -445,10 +577,7 @@ class _ClientShellState extends State<ClientShell> {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryCard({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -474,11 +603,36 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
+class _BrandAvatar extends StatelessWidget {
+  const _BrandAvatar({required this.label, this.imageUrl, this.radius = 20});
+
+  final String label;
+  final String? imageUrl;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = label.trim().isEmpty
+        ? 'GY'
+        : label
+              .trim()
+              .split(RegExp(r'\s+'))
+              .take(2)
+              .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
+              .join();
+
+    return CircleAvatar(
+      radius: radius,
+      foregroundImage: imageUrl == null || imageUrl!.isEmpty
+          ? null
+          : NetworkImage(imageUrl!),
+      child: Text(initials.isEmpty ? 'GY' : initials),
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    required this.child,
-  });
+  const _SectionCard({required this.title, required this.child});
 
   final String title;
   final Widget child;

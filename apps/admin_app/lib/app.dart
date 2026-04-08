@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'screens/admin_shell.dart';
 import 'screens/login_screen.dart';
+import 'screens/super_admin_shell.dart';
 
 class AdminApp extends StatefulWidget {
   const AdminApp({super.key});
@@ -16,15 +17,23 @@ class _AdminAppState extends State<AdminApp> {
   late final ApiClient _apiClient;
   late final AuthRepository _authRepository;
   late final AdminRepository _adminRepository;
+  late final SuperAdminRepository _superAdminRepository;
   late Future<AuthSession?> _sessionFuture;
 
   @override
   void initState() {
     super.initState();
     _sessionStore = SessionStore();
-    _apiClient = ApiClient(baseUrl: ApiConfig.resolveBaseUrl(), sessionStore: _sessionStore);
-    _authRepository = AuthRepository(apiClient: _apiClient, sessionStore: _sessionStore);
+    _apiClient = ApiClient(
+      baseUrl: ApiConfig.resolveBaseUrl(),
+      sessionStore: _sessionStore,
+    );
+    _authRepository = AuthRepository(
+      apiClient: _apiClient,
+      sessionStore: _sessionStore,
+    );
     _adminRepository = AdminRepository(apiClient: _apiClient);
+    _superAdminRepository = SuperAdminRepository(apiClient: _apiClient);
     _sessionFuture = _authRepository.restoreSession();
   }
 
@@ -54,12 +63,24 @@ class _AdminAppState extends State<AdminApp> {
         future: _sessionFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
           }
 
           final session = snapshot.data;
+          if (session != null && session.role == 'super_admin') {
+            return SuperAdminShell(
+              session: session,
+              superAdminRepository: _superAdminRepository,
+              authRepository: _authRepository,
+              onLogout: _handleLogout,
+            );
+          }
+
           if (session != null && session.role == 'admin') {
             return AdminShell(
+              session: session,
               adminRepository: _adminRepository,
               authRepository: _authRepository,
               onLogout: _handleLogout,

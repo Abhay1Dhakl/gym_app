@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.deps import require_role
+from app.api.deps import get_current_admin_user
 from app.core.security import generate_invite_code
 from app.db.session import get_db
 from app.models.entities import (
@@ -41,10 +41,11 @@ from app.schemas.admin import (
 router = APIRouter()
 
 
-def _client_detail_query(client_id: int):
+def _client_detail_query(client_id: int, organization_id: int):
     return (
         select(ClientProfile)
         .options(
+            selectinload(ClientProfile.organization),
             selectinload(ClientProfile.program)
             .selectinload(TrainingProgram.workout_days)
             .selectinload(WorkoutDay.exercises),
@@ -53,7 +54,7 @@ def _client_detail_query(client_id: int):
             selectinload(ClientProfile.messages),
             selectinload(ClientProfile.invoices),
         )
-        .where(ClientProfile.id == client_id)
+        .where(ClientProfile.id == client_id, ClientProfile.organization_id == organization_id)
     )
 
 
@@ -75,18 +76,34 @@ def _serialize_client_summary(client: ClientProfile) -> ClientSummaryResponse:
 
 @router.get("/dashboard", response_model=AdminDashboardResponse)
 def dashboard(
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> AdminDashboardResponse:
+    organization_id = admin_user.organization_id
     clients = db.scalars(
         select(ClientProfile)
         .options(selectinload(ClientProfile.checkins), selectinload(ClientProfile.invoices))
+        .where(ClientProfile.organization_id == organization_id)
         .order_by(ClientProfile.created_at.desc())
     ).all()
-    latest_checkins = db.scalars(select(CheckIn).order_by(desc(CheckIn.submitted_at)).limit(5)).all()
-    recent_messages = db.scalars(select(Message).order_by(desc(Message.created_at)).limit(5)).all()
+    latest_checkins = db.scalars(
+        select(CheckIn)
+        .join(ClientProfile, CheckIn.client_id == ClientProfile.id)
+        .where(ClientProfile.organization_id == organization_id)
+        .order_by(desc(CheckIn.submitted_at))
+        .limit(5)
+    ).all()
+    recent_messages = db.scalars(
+        select(Message)
+        .join(ClientProfile, Message.client_id == ClientProfile.id)
+        .where(ClientProfile.organization_id == organization_id)
+        .order_by(desc(Message.created_at))
+        .limit(5)
+    ).all()
 
     return AdminDashboardResponse(
+        organization_name=admin_user.organization.name if admin_user.organization else None,
+        organization_logo_url=admin_user.organization.logo_url if admin_user.organization else None,
         total_clients=len(clients),
         active_clients=sum(1 for client in clients if client.status == ClientStatus.ACTIVE),
         invited_clients=sum(1 for client in clients if client.status == ClientStatus.INVITED),
@@ -103,12 +120,13 @@ def dashboard(
 
 @router.get("/clients", response_model=list[ClientSummaryResponse])
 def list_clients(
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> list[ClientSummaryResponse]:
     clients = db.scalars(
         select(ClientProfile)
         .options(selectinload(ClientProfile.checkins), selectinload(ClientProfile.invoices))
+        .where(ClientProfile.organization_id == admin_user.organization_id)
         .order_by(ClientProfile.created_at.desc())
     ).all()
     return [_serialize_client_summary(client) for client in clients]
@@ -117,7 +135,7 @@ def list_clients(
 @router.post("/clients", response_model=ClientSummaryResponse, status_code=status.HTTP_201_CREATED)
 def create_client(
     payload: CreateClientRequest,
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> ClientSummaryResponse:
     invite_code = generate_invite_code()
@@ -132,6 +150,7 @@ def create_client(
         notes=payload.notes,
         invite_code=invite_code,
         status=ClientStatus.INVITED,
+        organization_id=admin_user.organization_id,
     )
     db.add(client)
     db.commit()
@@ -142,10 +161,10 @@ def create_client(
 @router.get("/clients/{client_id}", response_model=ClientDetailResponse)
 def get_client_detail(
     client_id: int,
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> ClientDetailResponse:
-    client = db.scalar(_client_detail_query(client_id))
+    client = db.scalar(_client_detail_query(client_id, admin_user.organization_id))
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
 
@@ -170,10 +189,10 @@ def get_client_detail(
 def upsert_program(
     client_id: int,
     payload: ProgramUpdateRequest,
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> ProgramResponse:
-    client = db.scalar(_client_detail_query(client_id))
+    client = db.scalar(_client_detail_query(client_id, admin_user.organization_id))
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
 
@@ -214,10 +233,14 @@ def upsert_program(
 def upsert_nutrition(
     client_id: int,
     payload: NutritionUpdateRequest,
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> NutritionResponse:
-    client = db.scalar(select(ClientProfile).options(selectinload(ClientProfile.nutrition_plan)).where(ClientProfile.id == client_id))
+    client = db.scalar(
+        select(ClientProfile)
+        .options(selectinload(ClientProfile.nutrition_plan))
+        .where(ClientProfile.id == client_id, ClientProfile.organization_id == admin_user.organization_id)
+    )
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
 
@@ -240,10 +263,15 @@ def upsert_nutrition(
 def create_invoice(
     client_id: int,
     payload: InvoiceCreateRequest,
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> InvoiceResponse:
-    client = db.scalar(select(ClientProfile).where(ClientProfile.id == client_id))
+    client = db.scalar(
+        select(ClientProfile).where(
+            ClientProfile.id == client_id,
+            ClientProfile.organization_id == admin_user.organization_id,
+        )
+    )
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
 
@@ -264,10 +292,15 @@ def create_invoice(
 def create_message(
     client_id: int,
     payload: MessageCreateRequest,
-    _user: User = Depends(require_role(UserRole.ADMIN)),
+    admin_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ) -> MessageResponse:
-    client = db.scalar(select(ClientProfile).where(ClientProfile.id == client_id))
+    client = db.scalar(
+        select(ClientProfile).where(
+            ClientProfile.id == client_id,
+            ClientProfile.organization_id == admin_user.organization_id,
+        )
+    )
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
 

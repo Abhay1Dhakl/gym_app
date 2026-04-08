@@ -10,6 +10,7 @@ from app.models.base import Base, TimestampMixin
 
 
 class UserRole(str, Enum):
+    SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
     CLIENT = "client"
 
@@ -26,15 +27,30 @@ class InvoiceStatus(str, Enum):
     OVERDUE = "overdue"
 
 
+class Organization(Base, TimestampMixin):
+    __tablename__ = "organizations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    logo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    users: Mapped[list["User"]] = relationship(back_populates="organization")
+    clients: Mapped[list["ClientProfile"]] = relationship(back_populates="organization")
+
+
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(SqlEnum(UserRole), index=True)
     is_active: Mapped[bool] = mapped_column(default=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), index=True, nullable=True)
 
+    organization: Mapped["Organization | None"] = relationship(back_populates="users")
     client_profile: Mapped["ClientProfile | None"] = relationship(
         back_populates="user",
         uselist=False,
@@ -53,8 +69,10 @@ class ClientProfile(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[ClientStatus] = mapped_column(SqlEnum(ClientStatus), default=ClientStatus.INVITED)
     invite_code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), index=True, nullable=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), unique=True, nullable=True)
 
+    organization: Mapped["Organization | None"] = relationship(back_populates="clients")
     user: Mapped["User | None"] = relationship(back_populates="client_profile")
     program: Mapped["TrainingProgram | None"] = relationship(
         back_populates="client",
