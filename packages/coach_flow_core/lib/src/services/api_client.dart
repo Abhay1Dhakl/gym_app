@@ -39,6 +39,31 @@ class ApiClient {
     return response;
   }
 
+  Future<Uri> websocketUri(
+    String path, {
+    bool authenticated = true,
+    Map<String, String>? queryParameters,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final params = <String, String>{
+      ...uri.queryParameters,
+      ...?queryParameters,
+    };
+
+    if (authenticated) {
+      final session = await sessionStore.loadSession();
+      if (session == null) {
+        throw const ApiException('No active session');
+      }
+      params['access_token'] = session.accessToken;
+    }
+
+    return uri.replace(
+      scheme: uri.scheme == 'https' ? 'wss' : 'ws',
+      queryParameters: params,
+    );
+  }
+
   Future<Map<String, dynamic>> postMap(
     String path, {
     Map<String, dynamic>? body,

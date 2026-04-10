@@ -1,5 +1,6 @@
 import 'package:coach_flow_core/src/models/platform_models.dart';
 import 'package:coach_flow_core/src/services/api_client.dart';
+import 'package:coach_flow_core/src/services/message_stream_connection.dart';
 
 class ClientRepository {
   const ClientRepository({required this.apiClient});
@@ -39,6 +40,13 @@ class ClientRepository {
   Future<List<MessageItem>> fetchMessages() async {
     final response = await apiClient.getList('/api/client/messages');
     return response.map((item) => MessageItem.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<MessageStreamConnection> watchConversation(int clientId) {
+    return MessageStreamConnection.connect(
+      apiClient: apiClient,
+      path: '/api/realtime/messages/$clientId',
+    );
   }
 
   Future<MessageItem> sendMessage(String body) async {

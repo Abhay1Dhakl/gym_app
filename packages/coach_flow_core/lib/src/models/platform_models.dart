@@ -95,6 +95,9 @@ class MessageItem {
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
+
+  bool get isFromAdmin => senderRole == 'admin';
+  bool get isFromClient => senderRole == 'client';
 }
 
 class InvoiceItem {

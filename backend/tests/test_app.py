@@ -56,6 +56,45 @@ class AppSmokeTests(unittest.TestCase):
             self.assertEqual(create_response.json()["invited_clients"], 0)
             self.assertEqual(create_response.json()["active_clients"], 0)
 
+    def test_realtime_message_stream_receives_new_messages(self) -> None:
+        unique_id = uuid4().hex[:8]
+        with TestClient(app) as client:
+            admin_login = client.post(
+                "/api/auth/login",
+                json={"email": "admin@abhaymethod.app", "password": "admin12345"},
+            )
+            self.assertEqual(admin_login.status_code, 200)
+            admin_token = admin_login.json()["access_token"]
+
+            client_login = client.post(
+                "/api/auth/login",
+                json={"email": "maya@example.com", "password": "client12345"},
+            )
+            self.assertEqual(client_login.status_code, 200)
+            client_token = client_login.json()["access_token"]
+
+            me_response = client.get(
+                "/api/auth/me",
+                headers={"Authorization": f"Bearer {client_token}"},
+            )
+            self.assertEqual(me_response.status_code, 200)
+            client_id = me_response.json()["client_id"]
+            body = f"Realtime hello {unique_id}"
+
+            with client.websocket_connect(
+                f"/api/realtime/messages/{client_id}?access_token={admin_token}"
+            ) as websocket:
+                send_response = client.post(
+                    "/api/client/messages",
+                    headers={"Authorization": f"Bearer {client_token}"},
+                    json={"body": body},
+                )
+                self.assertEqual(send_response.status_code, 201)
+
+                payload = websocket.receive_json()
+                self.assertEqual(payload["body"], body)
+                self.assertEqual(payload["sender_role"], "client")
+
 
 if __name__ == "__main__":
     unittest.main()

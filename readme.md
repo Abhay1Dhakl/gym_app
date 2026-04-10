@@ -112,7 +112,7 @@ For Android emulators, the default base URL fallback is already `http://10.0.2.2
 - view client detail
 - publish a starter training program
 - save nutrition targets
-- send coach messages
+- send coach messages with real-time delivery in both apps
 - create invoices
 - gym-branded client dashboard
 - client training, nutrition, check-ins, messages, and billing views

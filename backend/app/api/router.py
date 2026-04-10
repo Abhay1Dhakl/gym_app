@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import admin, auth, client, health, super_admin
+from app.api.routes import admin, auth, client, health, realtime, super_admin
 
 
 api_router = APIRouter()
@@ -9,3 +9,4 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(super_admin.router, prefix="/super-admin", tags=["super-admin"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(client.router, prefix="/client", tags=["client"])
+api_router.include_router(realtime.router, prefix="/realtime", tags=["realtime"])

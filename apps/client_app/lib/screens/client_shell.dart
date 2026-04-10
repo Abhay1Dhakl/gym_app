@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:coach_flow_core/coach_flow_core.dart';
 import 'package:flutter/material.dart';
 
@@ -21,8 +23,8 @@ class _ClientShellState extends State<ClientShell> {
   int _navIndex = 0;
   late Future<ClientDashboardModel> _dashboardFuture;
   late Future<List<CheckInItem>> _checkinsFuture;
-  late Future<List<MessageItem>> _messagesFuture;
   late Future<List<InvoiceItem>> _invoicesFuture;
+  LiveConversationController? _conversationController;
 
   final _weightController = TextEditingController();
   final _sleepController = TextEditingController(text: '4');
@@ -30,29 +32,97 @@ class _ClientShellState extends State<ClientShell> {
   final _adherenceController = TextEditingController(text: '90');
   final _checkinNotesController = TextEditingController();
   final _messageController = TextEditingController();
+  final _messageScrollController = ScrollController();
+
+  int _lastConversationLength = 0;
 
   @override
   void initState() {
     super.initState();
     _refreshAll();
+    unawaited(_initializeConversation());
   }
 
   @override
   void dispose() {
+    _conversationController?.removeListener(_handleConversationUpdate);
+    _conversationController?.dispose();
     _weightController.dispose();
     _sleepController.dispose();
     _stressController.dispose();
     _adherenceController.dispose();
     _checkinNotesController.dispose();
     _messageController.dispose();
+    _messageScrollController.dispose();
     super.dispose();
   }
 
   void _refreshAll() {
     _dashboardFuture = widget.clientRepository.fetchDashboard();
     _checkinsFuture = widget.clientRepository.fetchCheckins();
-    _messagesFuture = widget.clientRepository.fetchMessages();
     _invoicesFuture = widget.clientRepository.fetchInvoices();
+  }
+
+  Future<void> _initializeConversation() async {
+    try {
+      final dashboard = await _dashboardFuture;
+      if (!mounted) {
+        return;
+      }
+      await _bindConversation(dashboard.clientId);
+    } catch (_) {
+      // The dashboard already surfaces this failure.
+    }
+  }
+
+  Future<void> _bindConversation(int clientId) async {
+    _conversationController?.removeListener(_handleConversationUpdate);
+    _conversationController?.dispose();
+
+    final controller = LiveConversationController(
+      loadMessages: widget.clientRepository.fetchMessages,
+      sendMessage: widget.clientRepository.sendMessage,
+      connect: () => widget.clientRepository.watchConversation(clientId),
+    );
+    controller.addListener(_handleConversationUpdate);
+
+    if (!mounted) {
+      controller.dispose();
+      return;
+    }
+
+    setState(() {
+      _conversationController = controller;
+      _lastConversationLength = 0;
+    });
+
+    await controller.start();
+  }
+
+  void _handleConversationUpdate() {
+    final controller = _conversationController;
+    if (!mounted || controller == null) {
+      return;
+    }
+
+    final count = controller.state.messages.length;
+    if (count != _lastConversationLength) {
+      _lastConversationLength = count;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_messageScrollController.hasClients) {
+          return;
+        }
+        _messageScrollController.animateTo(
+          _messageScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
+
+    if (_navIndex == 0) {
+      setState(() {});
+    }
   }
 
   Future<void> _submitCheckin() async {
@@ -76,11 +146,19 @@ class _ClientShellState extends State<ClientShell> {
   }
 
   Future<void> _sendMessage() async {
+    final controller = _conversationController;
+    if (controller == null) {
+      _showMessage('Conversation is still loading.', error: true);
+      return;
+    }
+
     try {
-      await widget.clientRepository.sendMessage(_messageController.text.trim());
+      await controller.send(_messageController.text);
       _messageController.clear();
       _showMessage('Message sent.');
-      setState(_refreshAll);
+      setState(() {
+        _dashboardFuture = widget.clientRepository.fetchDashboard();
+      });
     } catch (error) {
       _showMessage(error.toString(), error: true);
     }
@@ -207,6 +285,12 @@ class _ClientShellState extends State<ClientShell> {
 
   Widget _buildDashboard() {
     return _withDashboard((data) {
+      final liveMessages = _conversationController?.state.messages;
+      final recentMessages =
+          liveMessages != null && liveMessages.isNotEmpty
+          ? liveMessages.reversed.take(4).toList()
+          : data.recentMessages;
+
       return ListView(
         children: [
           ScreenIntro(
@@ -281,7 +365,7 @@ class _ClientShellState extends State<ClientShell> {
           _SectionCard(
             title: 'Recent coach messages',
             child: Column(
-              children: data.recentMessages
+              children: recentMessages
                   .map(
                     (message) => ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -490,56 +574,84 @@ class _ClientShellState extends State<ClientShell> {
   }
 
   Widget _buildMessages() {
-    return FutureBuilder<List<MessageItem>>(
-      future: _messagesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text(snapshot.error.toString()));
-        }
+    final controller = _conversationController;
+    if (controller == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        final messages = snapshot.data!;
-        return ListView(
-          children: [
-            _SectionCard(
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final state = controller.state;
+        final error = state.error;
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final wideLayout = constraints.maxWidth >= 980;
+            final composer = _ConversationComposerCard(
+              controller: _messageController,
               title: 'Message your coach',
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _messageController,
-                    minLines: 4,
-                    maxLines: 5,
-                    decoration: const InputDecoration(labelText: 'Message'),
+              subtitle:
+                  'Send updates, questions, or form videos. New replies land instantly without a page refresh.',
+              isSending: state.isSending,
+              onSend: _sendMessage,
+            );
+            final timeline = _ConversationTimelineCard(
+              title: 'Live conversation',
+              subtitle:
+                  state.isConnected
+                      ? 'Connected to your coach now.'
+                      : 'Reconnecting to live replies.',
+              messages: state.messages,
+              scrollController: _messageScrollController,
+              isLoading: state.isLoading,
+              currentUserRole: 'client',
+              emptyTitle: 'Your coach thread is ready',
+              emptySubtitle:
+                  'Start the conversation once and every new reply will appear here live.',
+            );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ScreenIntro(
+                  eyebrow: 'Live Messaging',
+                  title: 'Coach communication that feels immediate.',
+                  subtitle:
+                      'No refreshes, no stale thread. Your updates and your coach’s replies stay synced in real time.',
+                  trailing: _LiveStatusChip(
+                    label: state.isConnected ? 'Live now' : 'Reconnecting',
+                    color: state.isConnected
+                        ? const Color(0xFF0F766E)
+                        : const Color(0xFFB45309),
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _sendMessage,
-                      child: const Text('Send message'),
-                    ),
-                  ),
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: 16),
+                  _StatusBanner(message: error),
                 ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _SectionCard(
-              title: 'Conversation',
-              child: Column(
-                children: messages
-                    .map(
-                      (message) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(message.senderRole.toUpperCase()),
-                        subtitle: Text(message.body),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-          ],
+                const SizedBox(height: 16),
+                Expanded(
+                  child: wideLayout
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(width: 320, child: composer),
+                            const SizedBox(width: 16),
+                            Expanded(child: timeline),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            composer,
+                            const SizedBox(height: 16),
+                            Expanded(child: timeline),
+                          ],
+                        ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -687,4 +799,333 @@ class _SectionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ConversationComposerCard extends StatelessWidget {
+  const _ConversationComposerCard({
+    required this.controller,
+    required this.title,
+    required this.subtitle,
+    required this.isSending,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final String title;
+  final String subtitle;
+  final bool isSending;
+  final Future<void> Function() onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      radius: 30,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF475569)),
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: controller,
+            minLines: 7,
+            maxLines: 10,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(
+              labelText: 'What do you want your coach to see?',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, child) {
+              final enabled = value.text.trim().isNotEmpty && !isSending;
+              return SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: enabled ? onSend : null,
+                  icon: isSending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send_rounded),
+                  label: Text(isSending ? 'Sending...' : 'Send live update'),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConversationTimelineCard extends StatelessWidget {
+  const _ConversationTimelineCard({
+    required this.title,
+    required this.subtitle,
+    required this.messages,
+    required this.scrollController,
+    required this.isLoading,
+    required this.currentUserRole,
+    required this.emptyTitle,
+    required this.emptySubtitle,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<MessageItem> messages;
+  final ScrollController scrollController;
+  final bool isLoading;
+  final String currentUserRole;
+  final String emptyTitle;
+  final String emptySubtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      radius: 30,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF475569)),
+          ),
+          const SizedBox(height: 18),
+          Expanded(
+            child: isLoading && messages.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : messages.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.78),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.mark_chat_read_outlined,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          emptyTitle,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          emptySubtitle,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: const Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.only(bottom: 8),
+                    itemCount: messages.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      return _MessageBubble(
+                        message: message,
+                        isCurrentUser: message.senderRole == currentUserRole,
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({
+    required this.message,
+    required this.isCurrentUser,
+  });
+
+  final MessageItem message;
+  final bool isCurrentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final alignment = isCurrentUser
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+    final bubbleColor = isCurrentUser
+        ? const Color(0xFF0F172A)
+        : Colors.white.withValues(alpha: 0.82);
+    final textColor = isCurrentUser ? Colors.white : const Color(0xFF0F172A);
+
+    return Column(
+      crossAxisAlignment: alignment,
+      children: [
+        Text(
+          isCurrentUser ? 'You' : 'Coach',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: const Color(0xFF64748B),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          constraints: const BoxConstraints(maxWidth: 520),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isCurrentUser
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.9),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Text(
+            message.body,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: textColor, height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _formatConversationTimestamp(message.createdAt),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: const Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LiveStatusChip extends StatelessWidget {
+  const _LiveStatusChip({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFAC898)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_tethering_error_rounded, color: Color(0xFFB45309)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF9A3412),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatConversationTimestamp(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final suffix = local.hour >= 12 ? 'PM' : 'AM';
+  return '${_monthName(local.month)} ${local.day}, $hour:$minute $suffix';
+}
+
+String _monthName(int month) {
+  const months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return months[month - 1];
 }

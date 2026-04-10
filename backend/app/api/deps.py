@@ -21,7 +21,7 @@ def _normalize_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
-def _load_user_for_token(db: Session, token: str) -> tuple[User, SessionToken]:
+def load_user_for_token(db: Session, token: str) -> tuple[User, SessionToken]:
     hashed = hash_token(token)
     statement = (
         select(SessionToken)
@@ -45,7 +45,7 @@ def get_current_user(
 ) -> tuple[User, SessionToken]:
     if credentials is None or not credentials.credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing access token")
-    return _load_user_for_token(db, credentials.credentials)
+    return load_user_for_token(db, credentials.credentials)
 
 
 def require_role(role: UserRole):

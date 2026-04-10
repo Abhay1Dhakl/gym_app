@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.entities import CheckIn, ClientProfile, Message, UserRole
 from app.schemas.admin import CheckInResponse, InvoiceResponse, MessageResponse, NutritionResponse, ProgramResponse
 from app.schemas.client import CheckInCreateRequest, ClientDashboardResponse, ClientMessageCreateRequest
+from app.services.message_hub import message_hub
 
 
 router = APIRouter()
@@ -81,7 +82,7 @@ def get_messages(profile: ClientProfile = Depends(get_current_client_profile)) -
 
 
 @router.post("/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def create_message(
+async def create_message(
     payload: ClientMessageCreateRequest,
     profile: ClientProfile = Depends(get_current_client_profile),
     db: Session = Depends(get_db),
@@ -90,7 +91,9 @@ def create_message(
     db.add(message)
     db.commit()
     db.refresh(message)
-    return MessageResponse.model_validate(message)
+    response = MessageResponse.model_validate(message)
+    await message_hub.broadcast(profile.id, response.model_dump(mode="json"))
+    return response
 
 
 @router.get("/invoices", response_model=list[InvoiceResponse])

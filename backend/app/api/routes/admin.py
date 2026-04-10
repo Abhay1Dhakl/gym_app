@@ -21,6 +21,7 @@ from app.models.entities import (
     WorkoutDay,
     WorkoutExercise,
 )
+from app.services.message_hub import message_hub
 from app.schemas.admin import (
     AdminDashboardResponse,
     CheckInResponse,
@@ -185,6 +186,29 @@ def get_client_detail(
     )
 
 
+@router.get("/clients/{client_id}/messages", response_model=list[MessageResponse])
+def get_client_messages(
+    client_id: int,
+    admin_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+) -> list[MessageResponse]:
+    client = db.scalar(
+        select(ClientProfile)
+        .options(selectinload(ClientProfile.messages))
+        .where(
+            ClientProfile.id == client_id,
+            ClientProfile.organization_id == admin_user.organization_id,
+        )
+    )
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+
+    return [
+        MessageResponse.model_validate(item)
+        for item in sorted(client.messages, key=lambda item: item.created_at)
+    ]
+
+
 @router.put("/clients/{client_id}/program", response_model=ProgramResponse)
 def upsert_program(
     client_id: int,
@@ -289,7 +313,7 @@ def create_invoice(
 
 
 @router.post("/clients/{client_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def create_message(
+async def create_message(
     client_id: int,
     payload: MessageCreateRequest,
     admin_user: User = Depends(get_current_admin_user),
@@ -308,4 +332,6 @@ def create_message(
     db.add(message)
     db.commit()
     db.refresh(message)
-    return MessageResponse.model_validate(message)
+    response = MessageResponse.model_validate(message)
+    await message_hub.broadcast(client.id, response.model_dump(mode="json"))
+    return response
