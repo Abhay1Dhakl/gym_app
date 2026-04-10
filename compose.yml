@@ -1,0 +1,53 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_ENV: docker
+      APP_SECRET_KEY: change-this-in-production
+      APP_CORS_ORIGINS: http://localhost:8081,http://localhost:8082,http://127.0.0.1:8081,http://127.0.0.1:8082
+      APP_DATABASE_URL: sqlite:////app/backend/data/platform.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-data:/app/backend/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  admin_app:
+    build:
+      context: .
+      dockerfile: apps/Dockerfile.web
+      args:
+        APP_DIR: apps/admin_app
+        API_BASE_URL: http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+
+  client_app:
+    build:
+      context: .
+      dockerfile: apps/Dockerfile.web
+      args:
+        APP_DIR: apps/client_app
+        API_BASE_URL: http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8082:80"
+
+volumes:
+  backend-data:

@@ -1,0 +1,12 @@
+.git
+.gitignore
+.venv
+
+**/.dart_tool
+**/.idea
+**/.pytest_cache
+**/__pycache__
+**/*.pyc
+**/build
+
+backend/data/*.db

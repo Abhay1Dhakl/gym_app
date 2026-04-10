@@ -57,6 +57,26 @@ Useful endpoints:
 - `GET /api/admin/dashboard`
 - `GET /api/client/dashboard`
 
+## Run Everything With Docker Compose
+
+Build and start the backend plus both Flutter web apps:
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+- backend API: `http://localhost:8000`
+- admin app: `http://localhost:8081`
+- client app: `http://localhost:8082`
+
+Notes:
+
+- the compose setup serves the Flutter apps as web builds via Nginx
+- the backend database is stored in the named volume `backend-data`
+- if you need different frontend origins, update `APP_CORS_ORIGINS` in `compose.yml`
+
 ## Run The Flutter Apps
 
 Admin app:
