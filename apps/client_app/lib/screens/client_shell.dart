@@ -425,7 +425,7 @@ class _ClientShellState extends State<ClientShell> {
               imageUrl:
                   data.organizationLogoUrl ??
                   widget.session.organizationLogoUrl,
-              icon: Icons.sunny_snowing_rounded,
+              icon: Icons.wb_sunny_outlined,
             ),
           ),
           const SizedBox(height: 16),
@@ -1444,8 +1444,9 @@ class _SubscriptionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = subscription?.status ?? 'not_set';
-    final hasAccess = subscription?.hasAccess ?? false;
+    final currentSubscription = subscription;
+    final status = currentSubscription?.status ?? 'not_set';
+    final hasAccess = currentSubscription?.hasAccess ?? false;
     final background = hasAccess
         ? const Color(0xFFECFDF5)
         : const Color(0xFFFEF2F2);
@@ -1477,9 +1478,9 @@ class _SubscriptionBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  subscription == null
+                  currentSubscription == null
                       ? 'Subscription not configured'
-                      : '${subscription.planName} • $status',
+                      : '${currentSubscription.planName} • $status',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: foreground,
                     fontWeight: FontWeight.w700,
@@ -1487,10 +1488,10 @@ class _SubscriptionBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  subscription == null
+                  currentSubscription == null
                       ? 'Your coach has not configured billing access yet.'
                       : hasAccess
-                          ? 'Access is active. Your next billing date is ${_formatDate(subscription!.nextInvoiceDate)}.'
+                          ? 'Access is active. Your next billing date is ${_formatDate(currentSubscription.nextInvoiceDate)}.'
                           : 'Access is restricted. Resolve billing to unlock messaging, metric logging, and form checks.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: foreground,
