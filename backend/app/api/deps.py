@@ -9,7 +9,18 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.security import hash_token
 from app.db.session import get_db
-from app.models.entities import ClientProfile, Organization, SessionToken, TrainingProgram, User, UserRole, WorkoutDay
+from app.models.entities import (
+    ClientProfile,
+    ClientSubscription,
+    Organization,
+    ProgressReport,
+    ProgramTemplate,
+    SessionToken,
+    TrainingProgram,
+    User,
+    UserRole,
+    WorkoutDay,
+)
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -93,9 +104,14 @@ def get_current_client_profile(
             .selectinload(TrainingProgram.workout_days)
             .selectinload(WorkoutDay.exercises),
             selectinload(ClientProfile.nutrition_plan),
+            selectinload(ClientProfile.subscription),
             selectinload(ClientProfile.checkins),
             selectinload(ClientProfile.messages),
             selectinload(ClientProfile.invoices),
+            selectinload(ClientProfile.metrics),
+            selectinload(ClientProfile.progress_reports),
+            selectinload(ClientProfile.notifications),
+            selectinload(ClientProfile.form_checks),
         )
         .where(ClientProfile.user_id == user.id)
     )

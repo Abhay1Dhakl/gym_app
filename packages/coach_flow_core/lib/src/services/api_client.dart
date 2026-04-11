@@ -31,6 +31,20 @@ class ApiClient {
     return response;
   }
 
+  Future<Map<String, dynamic>?> getOptionalMap(
+    String path, {
+    bool authenticated = true,
+  }) async {
+    final response = await _request('GET', path, authenticated: authenticated);
+    if (response == null) {
+      return null;
+    }
+    if (response is! Map<String, dynamic>) {
+      throw const ApiException('Unexpected response format');
+    }
+    return response;
+  }
+
   Future<List<dynamic>> getList(String path, {bool authenticated = true}) async {
     final response = await _request('GET', path, authenticated: authenticated);
     if (response is! List<dynamic>) {

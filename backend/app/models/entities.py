@@ -27,6 +27,34 @@ class InvoiceStatus(str, Enum):
     OVERDUE = "overdue"
 
 
+class SubscriptionStatus(str, Enum):
+    TRIALING = "trialing"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+
+
+class NotificationCategory(str, Enum):
+    CHECKIN_REMINDER = "checkin_reminder"
+    INVOICE = "invoice"
+    REPORT = "report"
+    CHALLENGE = "challenge"
+    FORM_CHECK = "form_check"
+
+
+class FormCheckStatus(str, Enum):
+    SUBMITTED = "submitted"
+    REVIEWED = "reviewed"
+
+
+class ChallengeMetricType(str, Enum):
+    CHECKIN_STREAK = "checkin_streak"
+    ADHERENCE_AVERAGE = "adherence_average"
+    SQUAT_GAIN = "squat_gain"
+    DEADLIFT_GAIN = "deadlift_gain"
+
+
 class Organization(Base, TimestampMixin):
     __tablename__ = "organizations"
 
@@ -37,6 +65,14 @@ class Organization(Base, TimestampMixin):
 
     users: Mapped[list["User"]] = relationship(back_populates="organization")
     clients: Mapped[list["ClientProfile"]] = relationship(back_populates="organization")
+    templates: Mapped[list["ProgramTemplate"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+    challenges: Mapped[list["CommunityChallenge"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
 
 
 class User(Base, TimestampMixin):
@@ -84,9 +120,27 @@ class ClientProfile(Base, TimestampMixin):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    subscription: Mapped["ClientSubscription | None"] = relationship(
+        back_populates="client",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     checkins: Mapped[list["CheckIn"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     messages: Mapped[list["Message"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="client", cascade="all, delete-orphan")
+    metrics: Mapped[list["MetricEntry"]] = relationship(back_populates="client", cascade="all, delete-orphan")
+    progress_reports: Mapped[list["ProgressReport"]] = relationship(
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
+    notifications: Mapped[list["NotificationRecord"]] = relationship(
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
+    form_checks: Mapped[list["FormCheck"]] = relationship(
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
 
 
 class TrainingProgram(Base, TimestampMixin):
@@ -98,6 +152,8 @@ class TrainingProgram(Base, TimestampMixin):
     phase: Mapped[str] = mapped_column(String(255))
     goal: Mapped[str] = mapped_column(String(255))
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     client: Mapped["ClientProfile"] = relationship(back_populates="program")
     workout_days: Mapped[list["WorkoutDay"]] = relationship(
@@ -138,6 +194,56 @@ class WorkoutExercise(Base, TimestampMixin):
     workout_day: Mapped["WorkoutDay"] = relationship(back_populates="exercises")
 
 
+class ProgramTemplate(Base, TimestampMixin):
+    __tablename__ = "program_templates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    phase: Mapped[str] = mapped_column(String(255))
+    goal: Mapped[str] = mapped_column(String(255))
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_weeks: Mapped[int] = mapped_column(Integer, default=4)
+
+    organization: Mapped["Organization"] = relationship(back_populates="templates")
+    workout_days: Mapped[list["ProgramTemplateDay"]] = relationship(
+        back_populates="template",
+        cascade="all, delete-orphan",
+        order_by="ProgramTemplateDay.day_index",
+    )
+
+
+class ProgramTemplateDay(Base, TimestampMixin):
+    __tablename__ = "program_template_days"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    template_id: Mapped[int] = mapped_column(ForeignKey("program_templates.id"), index=True)
+    day_index: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(255))
+    focus: Mapped[str] = mapped_column(String(255))
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    template: Mapped["ProgramTemplate"] = relationship(back_populates="workout_days")
+    exercises: Mapped[list["ProgramTemplateExercise"]] = relationship(
+        back_populates="template_day",
+        cascade="all, delete-orphan",
+    )
+
+
+class ProgramTemplateExercise(Base, TimestampMixin):
+    __tablename__ = "program_template_exercises"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    template_day_id: Mapped[int] = mapped_column(ForeignKey("program_template_days.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    sets: Mapped[str] = mapped_column(String(64))
+    reps: Mapped[str] = mapped_column(String(64))
+    rest_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    template_day: Mapped["ProgramTemplateDay"] = relationship(back_populates="exercises")
+
+
 class NutritionPlan(Base, TimestampMixin):
     __tablename__ = "nutrition_plans"
 
@@ -153,6 +259,27 @@ class NutritionPlan(Base, TimestampMixin):
     client: Mapped["ClientProfile"] = relationship(back_populates="nutrition_plan")
 
 
+class ClientSubscription(Base, TimestampMixin):
+    __tablename__ = "client_subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id"), unique=True, index=True)
+    plan_name: Mapped[str] = mapped_column(String(255))
+    monthly_price_cents: Mapped[int] = mapped_column(Integer)
+    status: Mapped[SubscriptionStatus] = mapped_column(
+        SqlEnum(SubscriptionStatus),
+        default=SubscriptionStatus.ACTIVE,
+        index=True,
+    )
+    started_at: Mapped[date] = mapped_column(Date)
+    next_invoice_date: Mapped[date] = mapped_column(Date)
+    canceled_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    client: Mapped["ClientProfile"] = relationship(back_populates="subscription")
+    invoices: Mapped[list["Invoice"]] = relationship(back_populates="subscription")
+
+
 class CheckIn(Base, TimestampMixin):
     __tablename__ = "checkins"
 
@@ -166,6 +293,23 @@ class CheckIn(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     client: Mapped["ClientProfile"] = relationship(back_populates="checkins")
+
+
+class MetricEntry(Base, TimestampMixin):
+    __tablename__ = "metric_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id"), index=True)
+    logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    body_weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+    squat_1rm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bench_1rm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    deadlift_1rm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    adherence_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    energy_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    client: Mapped["ClientProfile"] = relationship(back_populates="metrics")
 
 
 class Message(Base, TimestampMixin):
@@ -184,12 +328,82 @@ class Invoice(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id"), index=True)
+    subscription_id: Mapped[int | None] = mapped_column(
+        ForeignKey("client_subscriptions.id"),
+        index=True,
+        nullable=True,
+    )
     title: Mapped[str] = mapped_column(String(255))
     amount_cents: Mapped[int] = mapped_column(Integer)
     due_date: Mapped[date] = mapped_column(Date)
+    billing_period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    billing_period_end: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[InvoiceStatus] = mapped_column(SqlEnum(InvoiceStatus), default=InvoiceStatus.PENDING)
 
     client: Mapped["ClientProfile"] = relationship(back_populates="invoices")
+    subscription: Mapped["ClientSubscription | None"] = relationship(back_populates="invoices")
+
+
+class ProgressReport(Base, TimestampMixin):
+    __tablename__ = "progress_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id"), index=True)
+    period_start: Mapped[date] = mapped_column(Date, index=True)
+    period_end: Mapped[date] = mapped_column(Date)
+    summary: Mapped[str] = mapped_column(Text)
+    body_weight_change: Mapped[float | None] = mapped_column(Float, nullable=True)
+    squat_gain: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bench_gain: Mapped[float | None] = mapped_column(Float, nullable=True)
+    deadlift_gain: Mapped[float | None] = mapped_column(Float, nullable=True)
+    adherence_average: Mapped[float | None] = mapped_column(Float, nullable=True)
+    checkins_completed: Mapped[int] = mapped_column(Integer, default=0)
+
+    client: Mapped["ClientProfile"] = relationship(back_populates="progress_reports")
+
+
+class NotificationRecord(Base, TimestampMixin):
+    __tablename__ = "notification_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id"), index=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), index=True, nullable=True)
+    title: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    category: Mapped[NotificationCategory] = mapped_column(SqlEnum(NotificationCategory), index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    client: Mapped["ClientProfile"] = relationship(back_populates="notifications")
+
+
+class CommunityChallenge(Base, TimestampMixin):
+    __tablename__ = "community_challenges"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metric_type: Mapped[ChallengeMetricType] = mapped_column(SqlEnum(ChallengeMetricType), index=True)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    unit_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    organization: Mapped["Organization"] = relationship(back_populates="challenges")
+
+
+class FormCheck(Base, TimestampMixin):
+    __tablename__ = "form_checks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id"), index=True)
+    exercise_name: Mapped[str] = mapped_column(String(255))
+    video_url: Mapped[str] = mapped_column(String(1024))
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    coach_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[FormCheckStatus] = mapped_column(SqlEnum(FormCheckStatus), default=FormCheckStatus.SUBMITTED)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    client: Mapped["ClientProfile"] = relationship(back_populates="form_checks")
 
 
 class SessionToken(Base, TimestampMixin):

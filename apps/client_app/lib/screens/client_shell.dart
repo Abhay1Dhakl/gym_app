@@ -22,8 +22,7 @@ class ClientShell extends StatefulWidget {
 class _ClientShellState extends State<ClientShell> {
   int _navIndex = 0;
   late Future<ClientDashboardModel> _dashboardFuture;
-  late Future<List<CheckInItem>> _checkinsFuture;
-  late Future<List<InvoiceItem>> _invoicesFuture;
+  late Future<_ClientWorkspaceBundle> _workspaceFuture;
   LiveConversationController? _conversationController;
 
   final _weightController = TextEditingController();
@@ -31,6 +30,19 @@ class _ClientShellState extends State<ClientShell> {
   final _stressController = TextEditingController(text: '2');
   final _adherenceController = TextEditingController(text: '90');
   final _checkinNotesController = TextEditingController();
+
+  final _metricWeightController = TextEditingController();
+  final _metricSquatController = TextEditingController();
+  final _metricBenchController = TextEditingController();
+  final _metricDeadliftController = TextEditingController();
+  final _metricAdherenceController = TextEditingController(text: '90');
+  final _metricEnergyController = TextEditingController(text: '4');
+  final _metricNotesController = TextEditingController();
+
+  final _formExerciseController = TextEditingController();
+  final _formVideoUrlController = TextEditingController();
+  final _formNotesController = TextEditingController();
+
   final _messageController = TextEditingController();
   final _messageScrollController = ScrollController();
 
@@ -52,6 +64,16 @@ class _ClientShellState extends State<ClientShell> {
     _stressController.dispose();
     _adherenceController.dispose();
     _checkinNotesController.dispose();
+    _metricWeightController.dispose();
+    _metricSquatController.dispose();
+    _metricBenchController.dispose();
+    _metricDeadliftController.dispose();
+    _metricAdherenceController.dispose();
+    _metricEnergyController.dispose();
+    _metricNotesController.dispose();
+    _formExerciseController.dispose();
+    _formVideoUrlController.dispose();
+    _formNotesController.dispose();
     _messageController.dispose();
     _messageScrollController.dispose();
     super.dispose();
@@ -59,8 +81,25 @@ class _ClientShellState extends State<ClientShell> {
 
   void _refreshAll() {
     _dashboardFuture = widget.clientRepository.fetchDashboard();
-    _checkinsFuture = widget.clientRepository.fetchCheckins();
-    _invoicesFuture = widget.clientRepository.fetchInvoices();
+    _workspaceFuture = _loadWorkspaceBundle();
+  }
+
+  Future<_ClientWorkspaceBundle> _loadWorkspaceBundle() async {
+    final results = await Future.wait<dynamic>([
+      widget.clientRepository.fetchCheckins(),
+      widget.clientRepository.fetchMetrics(),
+      widget.clientRepository.fetchInvoices(),
+      widget.clientRepository.fetchNotifications(),
+      widget.clientRepository.fetchFormChecks(),
+    ]);
+
+    return _ClientWorkspaceBundle(
+      checkins: results[0] as List<CheckInItem>,
+      metrics: results[1] as List<MetricEntryModel>,
+      invoices: results[2] as List<InvoiceItem>,
+      notifications: results[3] as List<NotificationItem>,
+      formChecks: results[4] as List<FormCheckModel>,
+    );
   }
 
   Future<void> _initializeConversation() async {
@@ -71,7 +110,7 @@ class _ClientShellState extends State<ClientShell> {
       }
       await _bindConversation(dashboard.clientId);
     } catch (_) {
-      // The dashboard already surfaces this failure.
+      // Dashboard surface already handles this.
     }
   }
 
@@ -125,16 +164,26 @@ class _ClientShellState extends State<ClientShell> {
     }
   }
 
-  Future<void> _submitCheckin() async {
+  bool _hasAccess(ClientDashboardModel data) {
+    return data.subscription?.hasAccess ?? false;
+  }
+
+  Future<void> _submitCheckin(ClientDashboardModel data) async {
+    if (!_hasAccess(data)) {
+      _showMessage(
+        'Your subscription is not active. Resolve billing to submit new coaching data.',
+        error: true,
+      );
+      return;
+    }
+
     try {
       await widget.clientRepository.submitCheckin(
         bodyWeight: double.tryParse(_weightController.text),
         sleepScore: int.tryParse(_sleepController.text),
         stressScore: int.tryParse(_stressController.text),
         adherenceScore: int.tryParse(_adherenceController.text),
-        notes: _checkinNotesController.text.trim().isEmpty
-            ? null
-            : _checkinNotesController.text.trim(),
+        notes: _emptyToNull(_checkinNotesController.text),
       );
       _weightController.clear();
       _checkinNotesController.clear();
@@ -145,7 +194,79 @@ class _ClientShellState extends State<ClientShell> {
     }
   }
 
-  Future<void> _sendMessage() async {
+  Future<void> _submitMetric(ClientDashboardModel data) async {
+    if (!_hasAccess(data)) {
+      _showMessage(
+        'Your subscription is not active. Resolve billing to log new progress data.',
+        error: true,
+      );
+      return;
+    }
+
+    try {
+      await widget.clientRepository.submitMetric(
+        bodyWeight: double.tryParse(_metricWeightController.text),
+        squat1rm: double.tryParse(_metricSquatController.text),
+        bench1rm: double.tryParse(_metricBenchController.text),
+        deadlift1rm: double.tryParse(_metricDeadliftController.text),
+        adherenceScore: int.tryParse(_metricAdherenceController.text),
+        energyScore: int.tryParse(_metricEnergyController.text),
+        notes: _emptyToNull(_metricNotesController.text),
+      );
+      _showMessage('Metric logged.');
+      setState(_refreshAll);
+    } catch (error) {
+      _showMessage(error.toString(), error: true);
+    }
+  }
+
+  Future<void> _submitFormCheck(ClientDashboardModel data) async {
+    if (!_hasAccess(data)) {
+      _showMessage(
+        'Your subscription is not active. Resolve billing to request a form review.',
+        error: true,
+      );
+      return;
+    }
+
+    try {
+      await widget.clientRepository.submitFormCheck(
+        exerciseName: _formExerciseController.text.trim(),
+        videoUrl: _formVideoUrlController.text.trim(),
+        notes: _emptyToNull(_formNotesController.text),
+      );
+      _formExerciseController.clear();
+      _formVideoUrlController.clear();
+      _formNotesController.clear();
+      _showMessage('Video form check submitted.');
+      setState(_refreshAll);
+    } catch (error) {
+      _showMessage(error.toString(), error: true);
+    }
+  }
+
+  Future<void> _markNotificationRead(NotificationItem notification) async {
+    if (notification.isRead) {
+      return;
+    }
+
+    try {
+      await widget.clientRepository.markNotificationRead(notification.id);
+      setState(_refreshAll);
+    } catch (error) {
+      _showMessage(error.toString(), error: true);
+    }
+  }
+
+  Future<void> _sendMessage(ClientDashboardModel data) async {
+    if (!_hasAccess(data)) {
+      _showMessage(
+        'Your subscription is not active. Resolve billing to send new coaching messages.',
+        error: true,
+      );
+      return;
+    }
+
     final controller = _conversationController;
     if (controller == null) {
       _showMessage('Conversation is still loading.', error: true);
@@ -222,17 +343,12 @@ class _ClientShellState extends State<ClientShell> {
               NavigationDestination(
                 icon: Icon(Icons.fitness_center_outlined),
                 selectedIcon: Icon(Icons.fitness_center),
-                label: 'Train',
+                label: 'Plan',
               ),
               NavigationDestination(
-                icon: Icon(Icons.restaurant_outlined),
-                selectedIcon: Icon(Icons.restaurant),
-                label: 'Nutrition',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.fact_check_outlined),
-                selectedIcon: Icon(Icons.fact_check),
-                label: 'Check-ins',
+                icon: Icon(Icons.trending_up_outlined),
+                selectedIcon: Icon(Icons.trending_up),
+                label: 'Progress',
               ),
               NavigationDestination(
                 icon: Icon(Icons.message_outlined),
@@ -255,11 +371,10 @@ class _ClientShellState extends State<ClientShell> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 96, 16, 16),
             child: switch (_navIndex) {
-              0 => _buildDashboard(),
-              1 => _withDashboard((data) => _buildTraining(data)),
-              2 => _withDashboard((data) => _buildNutrition(data)),
-              3 => _buildCheckins(),
-              4 => _buildMessages(),
+              0 => _buildHome(),
+              1 => _withDashboard((data) => _buildPlan(data)),
+              2 => _buildProgress(),
+              3 => _buildMessages(),
               _ => _buildAccount(),
             },
           ),
@@ -283,22 +398,25 @@ class _ClientShellState extends State<ClientShell> {
     );
   }
 
-  Widget _buildDashboard() {
+  Widget _buildHome() {
     return _withDashboard((data) {
+      final access = _hasAccess(data);
       final liveMessages = _conversationController?.state.messages;
-      final recentMessages =
-          liveMessages != null && liveMessages.isNotEmpty
+      final recentMessages = liveMessages != null && liveMessages.isNotEmpty
           ? liveMessages.reversed.take(4).toList()
           : data.recentMessages;
+      final nextInvoice = data.upcomingInvoices.isNotEmpty
+          ? data.upcomingInvoices.first
+          : null;
 
       return ListView(
         children: [
           ScreenIntro(
-            eyebrow: 'Member App',
+            eyebrow: 'Member Experience',
             title:
-                'Everything from ${data.organizationName ?? widget.session.organizationName ?? 'your gym'} in one polished place.',
+                'Everything from ${data.organizationName ?? widget.session.organizationName ?? 'your gym'} in one premium flow.',
             subtitle:
-                'Training, nutrition, billing, and coach communication now live inside a more premium member experience.',
+                'Training, nutrition, metrics, reports, billing, notifications, and coach communication all stay current without reloading the page.',
             trailing: BrandChip(
               label:
                   data.organizationName ??
@@ -307,70 +425,153 @@ class _ClientShellState extends State<ClientShell> {
               imageUrl:
                   data.organizationLogoUrl ??
                   widget.session.organizationLogoUrl,
-              icon: Icons.wb_sunny_outlined,
+              icon: Icons.sunny_snowing_rounded,
             ),
           ),
           const SizedBox(height: 16),
-          _SectionCard(
-            title:
-                data.organizationName ??
-                widget.session.organizationName ??
-                'Your gym',
-            child: Row(
-              children: [
-                _BrandAvatar(
-                  label:
-                      data.organizationName ??
-                      widget.session.organizationName ??
-                      'Gym',
-                  imageUrl:
-                      data.organizationLogoUrl ??
-                      widget.session.organizationLogoUrl,
-                  radius: 28,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    'Your training, nutrition, billing, and coach communication are tied to this gym account.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _SubscriptionBanner(subscription: data.subscription),
           const SizedBox(height: 16),
-          Text(
-            'Hello, ${data.clientName}',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(data.goal),
-          const SizedBox(height: 20),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              _SummaryCard(label: 'Status', value: data.status),
               _SummaryCard(
-                label: 'Today',
-                value: data.todayFocus ?? 'Rest / recovery',
+                label: 'Subscription',
+                value: data.subscription?.status ?? 'not set',
+                accent: access ? const Color(0xFF0F766E) : const Color(0xFFDC2626),
               ),
               _SummaryCard(
-                label: 'Upcoming invoices',
-                value: '${data.upcomingInvoices.length}',
+                label: 'Today',
+                value: data.todayFocus ?? 'Recovery',
+                accent: const Color(0xFF2563EB),
+              ),
+              _SummaryCard(
+                label: 'Unread alerts',
+                value: '${data.unreadNotifications}',
+                accent: const Color(0xFFB45309),
+              ),
+              _SummaryCard(
+                label: 'Next invoice',
+                value: nextInvoice == null ? 'n/a' : _formatDate(nextInvoice.dueDate),
+                accent: const Color(0xFF7C3AED),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 1050;
+              final overviewPanel = _SectionCard(
+                title: 'Member snapshot',
+                subtitle:
+                    '${data.clientName} • ${data.goal} • ${data.organizationName ?? widget.session.organizationName ?? 'Gym'}',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (data.latestMetric != null)
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          Chip(
+                            label: Text(
+                              'Bodyweight ${_formatNumber(data.latestMetric!.bodyWeight)}',
+                            ),
+                          ),
+                          Chip(
+                            label: Text(
+                              'Squat ${_formatNumber(data.latestMetric!.squat1rm)}',
+                            ),
+                          ),
+                          Chip(
+                            label: Text(
+                              'Bench ${_formatNumber(data.latestMetric!.bench1rm)}',
+                            ),
+                          ),
+                          Chip(
+                            label: Text(
+                              'Deadlift ${_formatNumber(data.latestMetric!.deadlift1rm)}',
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      const Text(
+                        'No metrics logged yet. Visit Progress to add bodyweight and strength data.',
+                      ),
+                    if (data.monthlyProgressReport != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        data.monthlyProgressReport!.summary,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ],
+                  ],
+                ),
+              );
+
+              final challengePanel = _SectionCard(
+                title: 'Challenge pulse',
+                subtitle: data.activeChallenge == null
+                    ? 'No live challenge right now.'
+                    : '${data.activeChallenge!.title} • ${_metricLabel(data.activeChallenge!.metricType)}',
+                child: data.activeChallenge == null
+                    ? const Text(
+                        'When your gym launches a challenge, the live leaderboard shows up here.',
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (data.activeChallenge!.description != null)
+                            Text(data.activeChallenge!.description!),
+                          const SizedBox(height: 12),
+                          ...data.activeChallenge!.leaderboard.take(3).map(
+                            (entry) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: const Color(0xFFFDE68A),
+                                child: Text('#${entry.rank}'),
+                              ),
+                              title: Text(entry.clientName),
+                              trailing: Text(entry.displayScore),
+                            ),
+                          ),
+                        ],
+                      ),
+              );
+
+              if (!wide) {
+                return Column(
+                  children: [
+                    overviewPanel,
+                    const SizedBox(height: 16),
+                    challengePanel,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: overviewPanel),
+                  const SizedBox(width: 16),
+                  Expanded(child: challengePanel),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
           _SectionCard(
             title: 'Recent coach messages',
+            subtitle: 'Your conversation stays live and synchronized.',
             child: Column(
               children: recentMessages
                   .map(
                     (message) => ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(message.senderRole.toUpperCase()),
+                      title: Text(message.isFromClient ? 'You' : 'Coach'),
                       subtitle: Text(message.body),
+                      trailing: Text(_formatTime(message.createdAt)),
                     ),
                   )
                   .toList(),
@@ -378,367 +579,788 @@ class _ClientShellState extends State<ClientShell> {
           ),
           const SizedBox(height: 16),
           _SectionCard(
-            title: 'Recent check-ins',
-            child: Column(
-              children: data.recentCheckins
-                  .map(
-                    (checkin) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        checkin.submittedAt.toIso8601String().split('T').first,
-                      ),
-                      subtitle: Text(checkin.notes ?? 'No notes'),
-                      trailing: Text('${checkin.adherenceScore ?? 0}%'),
-                    ),
-                  )
-                  .toList(),
-            ),
+            title: 'Recent form checks',
+            subtitle:
+                'Exercise videos and coach reviews land here as soon as they are processed.',
+            child: data.recentFormChecks.isEmpty
+                ? const Text('No form checks yet.')
+                : Column(
+                    children: data.recentFormChecks
+                        .map(
+                          (formCheck) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(formCheck.exerciseName),
+                            subtitle: Text(
+                              formCheck.coachFeedback ?? 'Awaiting coach review',
+                            ),
+                            trailing: Text(formCheck.status),
+                          ),
+                        )
+                        .toList(),
+                  ),
           ),
         ],
       );
     });
   }
 
-  Widget _buildTraining(ClientDashboardModel data) {
+  Widget _buildPlan(ClientDashboardModel data) {
     final program = data.program;
-    if (program == null) {
-      return const Center(
-        child: Text('Your coach has not published a program yet.'),
-      );
-    }
-
-    return ListView(
-      children: [
-        Text(program.title, style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text('${program.phase} • ${program.goal}'),
-        const SizedBox(height: 16),
-        ...program.workoutDays.map(
-          (day) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _SectionCard(
-              title: 'Day ${day.dayIndex}: ${day.title}',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(day.focus),
-                  const SizedBox(height: 8),
-                  ...day.exercises.map(
-                    (exercise) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(exercise.name),
-                      subtitle: Text(
-                        '${exercise.sets} sets x ${exercise.reps} reps',
-                      ),
-                      trailing: Text(exercise.target ?? ''),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNutrition(ClientDashboardModel data) {
     final nutrition = data.nutritionPlan;
-    if (nutrition == null) {
-      return const Center(
-        child: Text('Your coach has not published nutrition targets yet.'),
-      );
-    }
 
     return ListView(
       children: [
-        Text('Nutrition', style: Theme.of(context).textTheme.headlineMedium),
+        _SubscriptionBanner(subscription: data.subscription),
         const SizedBox(height: 16),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _SummaryCard(label: 'Calories', value: '${nutrition.calories}'),
-            _SummaryCard(label: 'Protein', value: '${nutrition.protein}g'),
-            _SummaryCard(label: 'Carbs', value: '${nutrition.carbs}g'),
-            _SummaryCard(label: 'Fats', value: '${nutrition.fats}g'),
-          ],
+        _SectionCard(
+          title: 'Training cycle',
+          subtitle: program == null
+              ? 'Your coach has not assigned a program yet.'
+              : '${program.title} • ${program.phase} • ${_formatDate(program.startDate)} to ${_formatDate(program.endDate)}',
+          child: program == null
+              ? const Text(
+                  'Once your coach publishes a program, your 4-week cycle and day-by-day sessions will appear here.',
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(program.goal),
+                    if (program.summary != null) ...[
+                      const SizedBox(height: 8),
+                      Text(program.summary!),
+                    ],
+                    const SizedBox(height: 16),
+                    ...program.workoutDays.map(
+                      (day) => Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.88),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Day ${day.dayIndex}: ${day.title}',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(day.focus),
+                            if (day.notes != null) ...[
+                              const SizedBox(height: 8),
+                              Text(day.notes!),
+                            ],
+                            const SizedBox(height: 12),
+                            ...day.exercises.map(
+                              (exercise) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(exercise.name),
+                                subtitle: Text(
+                                  '${exercise.sets} sets x ${exercise.reps} reps',
+                                ),
+                                trailing: Text(exercise.target ?? ''),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
         const SizedBox(height: 16),
         _SectionCard(
-          title: 'Coach notes',
-          child: Text(nutrition.notes ?? 'No extra notes yet.'),
+          title: 'Nutrition targets',
+          subtitle: nutrition == null
+              ? 'No nutrition targets are assigned yet.'
+              : '${nutrition.calories} calories • ${nutrition.protein}g protein • ${nutrition.carbs}g carbs • ${nutrition.fats}g fats',
+          child: nutrition == null
+              ? const Text(
+                  'Your coach has not published nutrition guidance yet.',
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _PlanMetric(label: 'Calories', value: '${nutrition.calories}'),
+                        _PlanMetric(label: 'Protein', value: '${nutrition.protein}g'),
+                        _PlanMetric(label: 'Carbs', value: '${nutrition.carbs}g'),
+                        _PlanMetric(label: 'Fats', value: '${nutrition.fats}g'),
+                        _PlanMetric(
+                          label: 'Water',
+                          value: '${nutrition.waterLiters ?? 0} L',
+                        ),
+                      ],
+                    ),
+                    if (nutrition.notes != null) ...[
+                      const SizedBox(height: 16),
+                      Text(nutrition.notes!),
+                    ],
+                  ],
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildCheckins() {
-    return FutureBuilder<List<CheckInItem>>(
-      future: _checkinsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text(snapshot.error.toString()));
-        }
+  Widget _buildProgress() {
+    return _withDashboard((data) {
+      return FutureBuilder<_ClientWorkspaceBundle>(
+        future: _workspaceFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text(snapshot.error.toString()));
+          }
 
-        final checkins = snapshot.data!;
-        return ListView(
-          children: [
-            _SectionCard(
-              title: 'Submit weekly check-in',
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _weightController,
-                    decoration: const InputDecoration(
-                      labelText: 'Body weight (kg)',
+          final workspace = snapshot.data!;
+          final access = _hasAccess(data);
+
+          return ListView(
+            children: [
+              _SubscriptionBanner(subscription: data.subscription),
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 1080;
+                  final checkinCard = _SectionCard(
+                    title: 'Weekly check-in',
+                    subtitle:
+                        'Keep your coach updated on recovery, stress, adherence, and bodyweight.',
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _weightController,
+                          decoration: const InputDecoration(
+                            labelText: 'Body weight (kg)',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _sleepController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Sleep 1-5',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _stressController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Stress 1-5',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _adherenceController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Adherence %',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _checkinNotesController,
+                          minLines: 3,
+                          maxLines: 4,
+                          decoration: const InputDecoration(labelText: 'Notes'),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: access ? () => _submitCheckin(data) : null,
+                            child: const Text('Submit check-in'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
+                  );
+
+                  final metricCard = _SectionCard(
+                    title: 'Metrics lab',
+                    subtitle:
+                        'Log bodyweight and strength progress to drive your monthly report and gym leaderboard placement.',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            _metricField(
+                              _metricWeightController,
+                              'Bodyweight',
+                              width: 130,
+                            ),
+                            _metricField(
+                              _metricSquatController,
+                              'Squat 1RM',
+                              width: 130,
+                            ),
+                            _metricField(
+                              _metricBenchController,
+                              'Bench 1RM',
+                              width: 130,
+                            ),
+                            _metricField(
+                              _metricDeadliftController,
+                              'Deadlift 1RM',
+                              width: 140,
+                            ),
+                            _metricField(
+                              _metricAdherenceController,
+                              'Adherence %',
+                              width: 130,
+                            ),
+                            _metricField(
+                              _metricEnergyController,
+                              'Energy 1-5',
+                              width: 120,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _metricNotesController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'Metric notes',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: access ? () => _submitMetric(data) : null,
+                            child: const Text('Log metric'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (!wide) {
+                    return Column(
+                      children: [
+                        checkinCard,
+                        const SizedBox(height: 16),
+                        metricCard,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _sleepController,
-                          decoration: const InputDecoration(
-                            labelText: 'Sleep 1-5',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _stressController,
-                          decoration: const InputDecoration(
-                            labelText: 'Stress 1-5',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _adherenceController,
-                          decoration: const InputDecoration(
-                            labelText: 'Adherence %',
-                          ),
-                        ),
-                      ),
+                      Expanded(child: checkinCard),
+                      const SizedBox(width: 16),
+                      Expanded(child: metricCard),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _checkinNotesController,
-                    minLines: 3,
-                    maxLines: 4,
-                    decoration: const InputDecoration(labelText: 'Notes'),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _submitCheckin,
-                      child: const Text('Submit check-in'),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
-            const SizedBox(height: 16),
-            _SectionCard(
-              title: 'Check-in history',
-              child: Column(
-                children: checkins
-                    .map(
-                      (checkin) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          checkin.submittedAt
-                              .toIso8601String()
-                              .split('T')
-                              .first,
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 1080;
+                  final reportCard = _SectionCard(
+                    title: 'Monthly progress report',
+                    subtitle:
+                        'Auto-generated from the data you log across the month.',
+                    child: data.monthlyProgressReport == null
+                        ? const Text(
+                            'No report yet. Keep logging check-ins and metrics this month.',
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: [
+                                  Chip(
+                                    label: Text(
+                                      '${_formatDate(data.monthlyProgressReport!.periodStart)} to ${_formatDate(data.monthlyProgressReport!.periodEnd)}',
+                                    ),
+                                  ),
+                                  Chip(
+                                    label: Text(
+                                      'Check-ins ${data.monthlyProgressReport!.checkinsCompleted}',
+                                    ),
+                                  ),
+                                  Chip(
+                                    label: Text(
+                                      'Adherence ${data.monthlyProgressReport!.adherenceAverage?.toStringAsFixed(1) ?? 'n/a'}%',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(data.monthlyProgressReport!.summary),
+                              const SizedBox(height: 16),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  _MiniTrend(
+                                    label: 'Bodyweight',
+                                    value: _formatDelta(
+                                      data.monthlyProgressReport!.bodyWeightChange,
+                                    ),
+                                  ),
+                                  _MiniTrend(
+                                    label: 'Squat',
+                                    value: _formatDelta(
+                                      data.monthlyProgressReport!.squatGain,
+                                    ),
+                                  ),
+                                  _MiniTrend(
+                                    label: 'Bench',
+                                    value: _formatDelta(
+                                      data.monthlyProgressReport!.benchGain,
+                                    ),
+                                  ),
+                                  _MiniTrend(
+                                    label: 'Deadlift',
+                                    value: _formatDelta(
+                                      data.monthlyProgressReport!.deadliftGain,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                  );
+
+                  final challengeCard = _SectionCard(
+                    title: 'Community challenge',
+                    subtitle: data.activeChallenge == null
+                        ? 'No challenge is active right now.'
+                        : '${data.activeChallenge!.title} • ${_metricLabel(data.activeChallenge!.metricType)}',
+                    child: data.activeChallenge == null
+                        ? const Text(
+                            'Your gym will surface leaderboard challenges here when a monthly event goes live.',
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (data.activeChallenge!.description != null)
+                                Text(data.activeChallenge!.description!),
+                              const SizedBox(height: 12),
+                              ...data.activeChallenge!.leaderboard.map(
+                                (entry) => ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: CircleAvatar(
+                                    backgroundColor: const Color(0xFFFDE68A),
+                                    child: Text('#${entry.rank}'),
+                                  ),
+                                  title: Text(entry.clientName),
+                                  trailing: Text(entry.displayScore),
+                                ),
+                              ),
+                            ],
+                          ),
+                  );
+
+                  if (!wide) {
+                    return Column(
+                      children: [
+                        reportCard,
+                        const SizedBox(height: 16),
+                        challengeCard,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: reportCard),
+                      const SizedBox(width: 16),
+                      Expanded(child: challengeCard),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 1080;
+                  final historyCard = _SectionCard(
+                    title: 'History',
+                    subtitle:
+                        'Your last check-ins and metric entries in one place.',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Recent check-ins',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        subtitle: Text(checkin.notes ?? 'No notes'),
-                        trailing: Text('${checkin.adherenceScore ?? 0}%'),
-                      ),
-                    )
-                    .toList(),
+                        const SizedBox(height: 8),
+                        ...workspace.checkins.take(5).map(
+                          (checkin) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(_formatDateTime(checkin.submittedAt)),
+                            subtitle: Text(checkin.notes ?? 'No notes'),
+                            trailing: Text('${checkin.adherenceScore ?? 0}%'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Recent metrics',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        ...workspace.metrics.take(5).map(
+                          (metric) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(_formatDateTime(metric.loggedAt)),
+                            subtitle: Text(
+                              'BW ${_formatNumber(metric.bodyWeight)} • SQ ${_formatNumber(metric.squat1rm)} • BP ${_formatNumber(metric.bench1rm)} • DL ${_formatNumber(metric.deadlift1rm)}',
+                            ),
+                            trailing: Text('${metric.adherenceScore ?? 0}%'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  final formCheckCard = _SectionCard(
+                    title: 'Video form checks',
+                    subtitle:
+                        'Submit a lift video for coaching review and track review status.',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _formExerciseController,
+                          decoration: const InputDecoration(
+                            labelText: 'Exercise name',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _formVideoUrlController,
+                          decoration: const InputDecoration(
+                            labelText: 'Video URL',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _formNotesController,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: const InputDecoration(
+                            labelText: 'What should your coach look for?',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: access ? () => _submitFormCheck(data) : null,
+                            child: const Text('Submit form check'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ...workspace.formChecks.take(5).map(
+                          (formCheck) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(formCheck.exerciseName),
+                            subtitle: Text(
+                              formCheck.coachFeedback ?? 'Awaiting coach review',
+                            ),
+                            trailing: Text(formCheck.status),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (!wide) {
+                    return Column(
+                      children: [
+                        historyCard,
+                        const SizedBox(height: 16),
+                        formCheckCard,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: historyCard),
+                      const SizedBox(width: 16),
+                      Expanded(child: formCheckCard),
+                    ],
+                  );
+                },
               ),
-            ),
-          ],
-        );
-      },
-    );
+            ],
+          );
+        },
+      );
+    });
   }
 
   Widget _buildMessages() {
-    final controller = _conversationController;
-    if (controller == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return _withDashboard((data) {
+      final controller = _conversationController;
+      if (controller == null) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        final state = controller.state;
-        final error = state.error;
+      final access = _hasAccess(data);
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final wideLayout = constraints.maxWidth >= 980;
-            final composer = _ConversationComposerCard(
-              controller: _messageController,
-              title: 'Message your coach',
-              subtitle:
-                  'Send updates, questions, or form videos. New replies land instantly without a page refresh.',
-              isSending: state.isSending,
-              onSend: _sendMessage,
-            );
-            final timeline = _ConversationTimelineCard(
-              title: 'Live conversation',
-              subtitle:
-                  state.isConnected
-                      ? 'Connected to your coach now.'
-                      : 'Reconnecting to live replies.',
-              messages: state.messages,
-              scrollController: _messageScrollController,
-              isLoading: state.isLoading,
-              currentUserRole: 'client',
-              emptyTitle: 'Your coach thread is ready',
-              emptySubtitle:
-                  'Start the conversation once and every new reply will appear here live.',
-            );
+      return AnimatedBuilder(
+        animation: controller,
+        builder: (context, child) {
+          final state = controller.state;
+          final error = state.error;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ScreenIntro(
-                  eyebrow: 'Live Messaging',
-                  title: 'Coach communication that feels immediate.',
-                  subtitle:
-                      'No refreshes, no stale thread. Your updates and your coach’s replies stay synced in real time.',
-                  trailing: _LiveStatusChip(
-                    label: state.isConnected ? 'Live now' : 'Reconnecting',
-                    color: state.isConnected
-                        ? const Color(0xFF0F766E)
-                        : const Color(0xFFB45309),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final wideLayout = constraints.maxWidth >= 980;
+              final composer = _ConversationComposerCard(
+                controller: _messageController,
+                title: 'Message your coach',
+                subtitle: access
+                    ? 'Send updates, questions, recovery notes, or video links. Replies land instantly without a page refresh.'
+                    : 'Your subscription is not active. Messaging is temporarily locked until billing is resolved.',
+                isSending: state.isSending,
+                canSend: access,
+                onSend: () => _sendMessage(data),
+              );
+              final timeline = _ConversationTimelineCard(
+                title: 'Live conversation',
+                subtitle: state.isConnected
+                    ? 'Connected to your coach now.'
+                    : 'Reconnecting to live replies.',
+                messages: state.messages,
+                scrollController: _messageScrollController,
+                isLoading: state.isLoading,
+                currentUserRole: 'client',
+                emptyTitle: 'Your coach thread is ready',
+                emptySubtitle:
+                    'Start the conversation once and every new reply will appear here live.',
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ScreenIntro(
+                    eyebrow: 'Live Messaging',
+                    title: 'Coach communication that feels immediate.',
+                    subtitle:
+                        'No refreshes, no stale thread. Your updates and your coach’s replies stay synced in real time.',
+                    trailing: _LiveStatusChip(
+                      label: state.isConnected ? 'Live now' : 'Reconnecting',
+                      color: state.isConnected
+                          ? const Color(0xFF0F766E)
+                          : const Color(0xFFB45309),
+                    ),
                   ),
-                ),
-                if (error != null) ...[
                   const SizedBox(height: 16),
-                  _StatusBanner(message: error),
+                  _SubscriptionBanner(subscription: data.subscription),
+                  if (error != null) ...[
+                    const SizedBox(height: 16),
+                    _StatusBanner(message: error),
+                  ],
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: wideLayout
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: 320, child: composer),
+                              const SizedBox(width: 16),
+                              Expanded(child: timeline),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              composer,
+                              const SizedBox(height: 16),
+                              Expanded(child: timeline),
+                            ],
+                          ),
+                  ),
                 ],
-                const SizedBox(height: 16),
-                Expanded(
-                  child: wideLayout
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(width: 320, child: composer),
-                            const SizedBox(width: 16),
-                            Expanded(child: timeline),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            composer,
-                            const SizedBox(height: 16),
-                            Expanded(child: timeline),
-                          ],
-                        ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+              );
+            },
+          );
+        },
+      );
+    });
   }
 
   Widget _buildAccount() {
-    return FutureBuilder<List<InvoiceItem>>(
-      future: _invoicesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text(snapshot.error.toString()));
-        }
+    return _withDashboard((data) {
+      return FutureBuilder<_ClientWorkspaceBundle>(
+        future: _workspaceFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text(snapshot.error.toString()));
+          }
 
-        final invoices = snapshot.data!;
-        return ListView(
-          children: [
-            _SectionCard(
-              title: 'Gym account',
-              child: Row(
-                children: [
-                  _BrandAvatar(
-                    label: widget.session.organizationName ?? 'Gym',
-                    imageUrl: widget.session.organizationLogoUrl,
-                    radius: 28,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      widget.session.organizationName ?? 'Gym Client App',
+          final workspace = snapshot.data!;
+
+          return ListView(
+            children: [
+              _SubscriptionBanner(subscription: data.subscription),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Gym account',
+                subtitle:
+                    '${widget.session.organizationName ?? 'Gym'} • ${widget.session.fullName ?? data.clientName}',
+                child: Row(
+                  children: [
+                    _BrandAvatar(
+                      label: widget.session.organizationName ?? 'Gym',
+                      imageUrl: widget.session.organizationLogoUrl,
+                      radius: 28,
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _SectionCard(
-              title: 'Billing',
-              child: Column(
-                children: invoices
-                    .map(
-                      (invoice) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(invoice.title),
-                        subtitle: Text(
-                          invoice.dueDate.toIso8601String().split('T').first,
-                        ),
-                        trailing: Text(invoice.status),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Your training, billing, metrics, and communication are tied to this gym account.',
                       ),
-                    )
-                    .toList(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: widget.onLogout,
-                icon: const Icon(Icons.logout),
-                label: const Text('Log out'),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Billing',
+                subtitle:
+                    'Upcoming and past invoices generated from your subscription cycle.',
+                child: workspace.invoices.isEmpty
+                    ? const Text('No invoices yet.')
+                    : Column(
+                        children: workspace.invoices
+                            .map(
+                              (invoice) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(invoice.title),
+                                subtitle: Text(
+                                  '${_formatDate(invoice.dueDate)}${invoice.billingPeriodStart == null ? '' : ' • ${_formatDate(invoice.billingPeriodStart)} to ${_formatDate(invoice.billingPeriodEnd)}'}',
+                                ),
+                                trailing: Text(invoice.status),
+                              ),
+                            )
+                            .toList(),
+                      ),
               ),
-            ),
-          ],
-        );
-      },
-    );
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Notification inbox',
+                subtitle:
+                    'Check-in reminders, report availability, and form review updates all surface here.',
+                child: workspace.notifications.isEmpty
+                    ? const Text('No notifications yet.')
+                    : Column(
+                        children: workspace.notifications
+                            .map(
+                              (notification) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(notification.title),
+                                subtitle: Text(notification.body),
+                                trailing: notification.isRead
+                                    ? const Text('Read')
+                                    : TextButton(
+                                        onPressed: () =>
+                                            _markNotificationRead(notification),
+                                        child: const Text('Mark read'),
+                                      ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: widget.onLogout,
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Log out'),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    });
   }
 }
 
+class _ClientWorkspaceBundle {
+  const _ClientWorkspaceBundle({
+    required this.checkins,
+    required this.metrics,
+    required this.invoices,
+    required this.notifications,
+    required this.formChecks,
+  });
+
+  final List<CheckInItem> checkins;
+  final List<MetricEntryModel> metrics;
+  final List<InvoiceItem> invoices;
+  final List<NotificationItem> notifications;
+  final List<FormCheckModel> formChecks;
+}
+
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.label, required this.value});
+  const _SummaryCard({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
 
   final String label;
   final String value;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 150,
+      width: 160,
       child: GlassPanel(
         padding: const EdgeInsets.all(16),
         radius: 24,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            ),
+            const SizedBox(height: 10),
             Text(label, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 8),
             Text(value, style: Theme.of(context).textTheme.titleLarge),
@@ -761,11 +1383,11 @@ class _BrandAvatar extends StatelessWidget {
     final initials = label.trim().isEmpty
         ? 'GY'
         : label
-              .trim()
-              .split(RegExp(r'\s+'))
-              .take(2)
-              .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
-              .join();
+            .trim()
+            .split(RegExp(r'\s+'))
+            .take(2)
+            .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
+            .join();
 
     return CircleAvatar(
       radius: radius,
@@ -779,9 +1401,14 @@ class _BrandAvatar extends StatelessWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.child});
+  const _SectionCard({
+    required this.title,
+    required this.child,
+    this.subtitle,
+  });
 
   final String title;
+  final String? subtitle;
   final Widget child;
 
   @override
@@ -793,6 +1420,15 @@ class _SectionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: Theme.of(context).textTheme.titleLarge),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle!,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF475569)),
+            ),
+          ],
           const SizedBox(height: 12),
           child,
         ],
@@ -801,12 +1437,155 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
+class _SubscriptionBanner extends StatelessWidget {
+  const _SubscriptionBanner({required this.subscription});
+
+  final SubscriptionModel? subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = subscription?.status ?? 'not_set';
+    final hasAccess = subscription?.hasAccess ?? false;
+    final background = hasAccess
+        ? const Color(0xFFECFDF5)
+        : const Color(0xFFFEF2F2);
+    final border = hasAccess
+        ? const Color(0xFF6EE7B7)
+        : const Color(0xFFFCA5A5);
+    final foreground = hasAccess
+        ? const Color(0xFF065F46)
+        : const Color(0xFF991B1B);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            hasAccess ? Icons.verified_rounded : Icons.error_outline_rounded,
+            color: foreground,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subscription == null
+                      ? 'Subscription not configured'
+                      : '${subscription.planName} • $status',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subscription == null
+                      ? 'Your coach has not configured billing access yet.'
+                      : hasAccess
+                          ? 'Access is active. Your next billing date is ${_formatDate(subscription!.nextInvoiceDate)}.'
+                          : 'Access is restricted. Resolve billing to unlock messaging, metric logging, and form checks.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: foreground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanMetric extends StatelessWidget {
+  const _PlanMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 120,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.62),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 6),
+            Text(value, style: Theme.of(context).textTheme.titleMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniTrend extends StatelessWidget {
+  const _MiniTrend({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 132,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.62),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 6),
+            Text(value, style: Theme.of(context).textTheme.titleMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Widget _metricField(
+  TextEditingController controller,
+  String label, {
+  double width = 160,
+}) {
+  return SizedBox(
+    width: width,
+    child: TextField(
+      controller: controller,
+      decoration: InputDecoration(labelText: label),
+    ),
+  );
+}
+
 class _ConversationComposerCard extends StatelessWidget {
   const _ConversationComposerCard({
     required this.controller,
     required this.title,
     required this.subtitle,
     required this.isSending,
+    required this.canSend,
     required this.onSend,
   });
 
@@ -814,6 +1593,7 @@ class _ConversationComposerCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool isSending;
+  final bool canSend;
   final Future<void> Function() onSend;
 
   @override
@@ -846,7 +1626,7 @@ class _ConversationComposerCard extends StatelessWidget {
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
             builder: (context, value, child) {
-              final enabled = value.text.trim().isNotEmpty && !isSending;
+              final enabled = value.text.trim().isNotEmpty && !isSending && canSend;
               return SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -1020,7 +1800,7 @@ class _MessageBubble extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          _formatConversationTimestamp(message.createdAt),
+          _formatDateTime(message.createdAt),
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: const Color(0xFF64748B),
             fontWeight: FontWeight.w600,
@@ -1087,7 +1867,10 @@ class _StatusBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.wifi_tethering_error_rounded, color: Color(0xFFB45309)),
+          const Icon(
+            Icons.wifi_tethering_error_rounded,
+            color: Color(0xFFB45309),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -1104,12 +1887,63 @@ class _StatusBanner extends StatelessWidget {
   }
 }
 
-String _formatConversationTimestamp(DateTime value) {
+String? _emptyToNull(String value) {
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+String _formatDate(DateTime? value) {
+  if (value == null) {
+    return 'n/a';
+  }
+  return formatDateForApi(value);
+}
+
+String _formatTime(DateTime value) {
   final local = value.toLocal();
   final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
   final minute = local.minute.toString().padLeft(2, '0');
   final suffix = local.hour >= 12 ? 'PM' : 'AM';
-  return '${_monthName(local.month)} ${local.day}, $hour:$minute $suffix';
+  return '$hour:$minute $suffix';
+}
+
+String _formatDateTime(DateTime value) {
+  return '${_monthName(value.month)} ${value.day}, ${_formatTime(value)}';
+}
+
+String _formatNumber(double? value) {
+  if (value == null) {
+    return 'n/a';
+  }
+  if (value == value.roundToDouble()) {
+    return '${value.round()}';
+  }
+  return value.toStringAsFixed(1);
+}
+
+String _formatDelta(double? value) {
+  if (value == null) {
+    return 'n/a';
+  }
+  final prefix = value >= 0 ? '+' : '';
+  return '$prefix${value.toStringAsFixed(1)}';
+}
+
+String _metricLabel(String metricType) {
+  switch (metricType) {
+    case 'body_weight':
+      return 'Bodyweight';
+    case 'squat_1rm':
+      return 'Squat 1RM';
+    case 'bench_1rm':
+      return 'Bench 1RM';
+    case 'deadlift_1rm':
+      return 'Deadlift 1RM';
+    case 'adherence_score':
+      return 'Adherence';
+    default:
+      return metricType;
+  }
 }
 
 String _monthName(int month) {
