@@ -28,6 +28,7 @@ services:
       context: .
       dockerfile: apps/Dockerfile.web
       args:
+        FLUTTER_IMAGE: ${FLUTTER_IMAGE:-instrumentisto/flutter:latest}
         APP_DIR: apps/admin_app
         API_BASE_URL: http://localhost:8000
     depends_on:
@@ -41,6 +42,7 @@ services:
       context: .
       dockerfile: apps/Dockerfile.web
       args:
+        FLUTTER_IMAGE: ${FLUTTER_IMAGE:-instrumentisto/flutter:latest}
         APP_DIR: apps/client_app
         API_BASE_URL: http://localhost:8000
     depends_on:

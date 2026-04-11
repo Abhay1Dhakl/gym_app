@@ -1,8 +1,14 @@
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+ARG FLUTTER_IMAGE=instrumentisto/flutter:latest
+FROM ${FLUTTER_IMAGE} AS build
 
 ARG APP_DIR
 ARG API_BASE_URL=http://localhost:8000
 
+ENV CI=true
+ENV HOME=/root
+ENV PUB_CACHE=/root/.pub-cache
+
+USER root
 WORKDIR /workspace
 
 COPY packages /workspace/packages
@@ -10,9 +16,14 @@ COPY ${APP_DIR} /workspace/${APP_DIR}
 
 WORKDIR /workspace/${APP_DIR}
 
-RUN flutter config --enable-web \
-    && flutter pub get \
-    && flutter build web --release --dart-define=API_BASE_URL=${API_BASE_URL}
+RUN git config --global --add safe.directory /sdks/flutter || true
+RUN git config --global --add safe.directory /flutter || true
+RUN git config --global --add safe.directory /usr/local/flutter || true
+
+RUN flutter config --enable-web
+RUN flutter precache --web
+RUN flutter pub get
+RUN flutter build web --release --dart-define=API_BASE_URL=${API_BASE_URL}
 
 FROM nginx:1.27-alpine
 
