@@ -422,6 +422,7 @@ class _ClientShellState extends State<ClientShell> {
                   data.organizationName ??
                   widget.session.organizationName ??
                   'Gym',
+                  
               imageUrl:
                   data.organizationLogoUrl ??
                   widget.session.organizationLogoUrl,
